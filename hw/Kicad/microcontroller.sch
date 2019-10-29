@@ -6,8 +6,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 3
 Title "time2time project"
-Date "2019-09-09"
-Rev "V1.0"
+Date "2019-10-29"
+Rev "V1.1"
 Comp "Puma Pride Robotics Team"
 Comment1 "Designed by Rubén Espino San José"
 Comment2 "CC BY-NC-SA license"
@@ -320,9 +320,9 @@ JP_ADD1
 Text Label 10750 3550 2    50   ~ 0
 JP_ADD3
 Wire Wire Line
-	9150 5400 8700 5400
-Text Label 8700 5400 0    50   ~ 0
-BUZZER
+	9150 5400 8550 5400
+Text Label 8550 5400 0    50   ~ 0
+BUZZER_PWM
 $Comp
 L Connector_Generic:Conn_01x03 J303
 U 1 1 5D01B53A
@@ -423,9 +423,9 @@ Wire Wire Line
 Wire Wire Line
 	6050 1800 6550 1800
 Text Label 8350 1600 2    50   ~ 0
-TX
+UART_TX
 Text Label 8350 1800 2    50   ~ 0
-RX
+UART_RX
 $Comp
 L Interface_USB:CP2102N-A01-GQFN28 U?
 U 1 1 5D4C272E
@@ -468,9 +468,9 @@ $EndComp
 Wire Wire Line
 	3450 1650 3450 1250
 Wire Wire Line
-	4300 2050 4050 2050
+	4500 2050 4050 2050
 Wire Wire Line
-	4300 2150 4050 2150
+	4500 2150 4050 2150
 $Comp
 L Device:C C?
 U 1 1 5D4C2743
@@ -703,10 +703,10 @@ F 3 "" H 4300 3000 50  0001 C CNN
 $EndComp
 NoConn ~ 4050 3050
 NoConn ~ 4050 3150
-Text Label 4300 2050 2    50   ~ 0
-RX
-Text Label 4300 2150 2    50   ~ 0
-TX
+Text Label 4500 2150 2    50   ~ 0
+UART_RX
+Text Label 4500 2050 2    50   ~ 0
+UART_TX
 Text HLabel 1100 1150 0    50   BiDi ~ 0
 USB[1..4]
 Entry Wire Line
@@ -746,7 +746,7 @@ LED_G
 Text Label 8350 2400 2    50   ~ 0
 LED_B
 Text Label 8350 1900 2    50   ~ 0
-BUZZER
+BUZZER_PWM
 Text Label 8350 3600 2    50   ~ 0
 JP_ADD1
 Text Label 8350 3700 2    50   ~ 0
@@ -807,11 +807,11 @@ Entry Wire Line
 	8550 2800 8650 2700
 Text HLabel 8650 2350 2    50   Input ~ 0
 PW_STATE[1..3]
-Text Label 8550 2600 2    50   ~ 0
-PW_STATE1
 Text Label 8550 2700 2    50   ~ 0
-PW_STATE2
+PW_STATE1
 Text Label 8550 2800 2    50   ~ 0
+PW_STATE2
+Text Label 8550 2600 2    50   ~ 0
 PW_STATE3
 Text Label 1200 1400 0    50   ~ 0
 USB1
@@ -901,7 +901,7 @@ Wire Wire Line
 Wire Wire Line
 	7750 2100 8650 2100
 Text HLabel 8650 2100 2    50   Output ~ 0
-SLEEP
+SLEEP_12V
 $Comp
 L Switch:SW_Push SW302
 U 1 1 5D5BD911
@@ -1009,12 +1009,12 @@ F 3 "~" H 1950 6550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	4050 1950 4300 1950
+	4050 1950 4500 1950
 Wire Wire Line
-	4050 2350 4300 2350
-Text Label 4300 1950 2    50   ~ 0
+	4050 2350 4500 2350
+Text Label 4500 1950 2    50   ~ 0
 RTS
-Text Label 4300 2350 2    50   ~ 0
+Text Label 4500 2350 2    50   ~ 0
 DTR
 $Comp
 L Device:C C?
@@ -1387,10 +1387,10 @@ F 3 "~" H 9750 5000 50  0001 C CNN
 	1    9750 5000
 	0    -1   1    0   
 $EndComp
+Connection ~ 9750 4850
+Connection ~ 9750 5150
 Wire Bus Line
 	8650 2350 8650 2700
 Wire Bus Line
 	1100 1150 1100 1600
-Connection ~ 9750 4850
-Connection ~ 9750 5150
 $EndSCHEMATC

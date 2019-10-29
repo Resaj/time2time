@@ -6,8 +6,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 3
 Title "time2time project"
-Date "2019-09-09"
-Rev "V1.0"
+Date "2019-10-29"
+Rev "V1.1"
 Comp "Puma Pride Robotics Team"
 Comment1 "Designed by Rubén Espino San José"
 Comment2 "CC BY-NC-SA license"
@@ -1273,11 +1273,11 @@ Text Label 4050 3300 0    50   ~ 0
 USB3
 Text Label 4050 3400 0    50   ~ 0
 USB4
-Text Label 10200 2500 2    50   ~ 0
-PW_STATE1
 Text Label 10200 2700 2    50   ~ 0
-PW_STATE2
+PW_STATE1
 Text Label 10200 2800 2    50   ~ 0
+PW_STATE2
+Text Label 10200 2500 2    50   ~ 0
 PW_STATE3
 Connection ~ 3300 1750
 Wire Wire Line
@@ -1308,7 +1308,7 @@ Wire Wire Line
 	1950 6550 2400 6550
 Connection ~ 2400 6550
 Text HLabel 1550 6550 0    50   Input ~ 0
-SLEEP
+SLEEP_12V
 NoConn ~ 3000 4050
 $Comp
 L power:PWR_FLAG #FLG0201
