@@ -2920,7 +2920,7 @@
     (fp_text reference R307 (at -3.4 -0.1 180) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
-    (fp_text value 33K (at 0 1.43 180) (layer F.Fab)
+    (fp_text value 47K (at 0 1.43 180) (layer F.Fab)
       (effects (font (size 1 1) (thickness 0.15)))
     )
     (fp_line (start -0.8 0.4) (end -0.8 -0.4) (layer F.Fab) (width 0.1))

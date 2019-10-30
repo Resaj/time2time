@@ -518,7 +518,7 @@
       <tstamp>5CD4866F</tstamp>
     </comp>
     <comp ref="R307">
-      <value>33K</value>
+      <value>47K</value>
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <libsource lib="Device" part="R" description="Resistor"/>

@@ -6,7 +6,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 3
 Title "time2time project"
-Date "2019-10-29"
+Date "2019-10-30"
 Rev "V1.1"
 Comp "Puma Pride Robotics Team"
 Comment1 "Designed by Rubén Espino San José"
@@ -107,7 +107,7 @@ L Device:R R307
 U 1 1 5CD48831
 P 3250 5100
 F 0 "R307" H 3320 5146 50  0000 L CNN
-F 1 "33K" H 3320 5055 50  0000 L CNN
+F 1 "47K" H 3320 5055 50  0000 L CNN
 F 2 "Resistor_SMD:R_0603_1608Metric" V 3180 5100 50  0001 C CNN
 F 3 "~" H 3250 5100 50  0001 C CNN
 	1    3250 5100

@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/resaj/Github/time2time/hw/Kicad/time2time.sch)
-    (date "mar 29 oct 2019 20:12:57 CET")
+    (date "mié 30 oct 2019 19:00:07 CET")
     (tool "Eeschema 5.0.2-bee76a0~70~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -30,7 +30,7 @@
         (title "time2time project")
         (company "Puma Pride Robotics Team")
         (rev V1.1)
-        (date 2019-10-29)
+        (date 2019-10-30)
         (source microcontroller.sch)
         (comment (number 1) (value "Designed by Rubén Espino San José"))
         (comment (number 2) (value "CC BY-NC-SA license"))
@@ -451,7 +451,7 @@
       (sheetpath (names /microcontroller/) (tstamps /5CD46B96/))
       (tstamp 5CD4866F))
     (comp (ref R307)
-      (value 33K)
+      (value 47K)
       (footprint Resistor_SMD:R_0603_1608Metric)
       (datasheet ~)
       (libsource (lib Device) (part R) (description Resistor))
