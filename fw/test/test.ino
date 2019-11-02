@@ -68,20 +68,20 @@ void loop() {
   switch(state)
   {
     case 0:
-      display.drawString(0, 15, "time2time test\nPress C for continue" );
+      display.drawString(0, 15, "time2time test\nPress C to continue" );
       if(button3)
         state++;
       break;
 
     case 1:
       msg =  String(analogRead(BATT_MONITOR)*4.051/3679, 3);
-      display.drawString(0, 15, "Battery voltage: " + msg + "\nPress B for continue");
+      display.drawString(0, 15, "Battery voltage: " + msg + "\nPress B to continue");
       if(button2)
         state++;
       break;
 
     case 2:
-      display.drawString(0, 10, "Press A for active\nthe buzzer");
+      display.drawString(0, 10, "Press A to turn on\nthe buzzer");
       if(button1)
         state++;
       break;
@@ -89,13 +89,13 @@ void loop() {
     case 3:
       if(button1)
         beep(BUZZER_PWM, 1000, 300);
-      display.drawString(0, 10, "Press A for active\nthe buzzer\nPress C for continue");
+      display.drawString(0, 10, "Press A to turn on\nthe buzzer\nPress C to continue");
       if(button3)
         state++;
       break;
 
     case 4:
-      display.drawString(0, 10, "Press B for power \non the led");
+      display.drawString(0, 10, "Press B to turn on\nthe led");
       if(button2)
         state++;
       break;
@@ -113,7 +113,7 @@ void loop() {
         digitalWrite(LED_B, LOW);
         delay(500);
       }
-      display.drawString(0, 10, "Press B for power \non the led\nPress C for continue");
+      display.drawString(0, 10, "Press B to turn on\nthe led\nPress C to continue");
       if(button3)
       {
         digitalWrite(LED_R, HIGH);
@@ -125,13 +125,13 @@ void loop() {
 
     case 6:
       msg =  String(address = digitalRead(JP_ADD1)*4 + digitalRead(JP_ADD2)*2 + digitalRead(JP_ADD3));
-      display.drawString(0, 15, "Node address: " + msg + "\nPress B for continue");
+      display.drawString(0, 15, "Node address: " + msg + "\nPress B to continue");
       if(button2)
         state++;
       break;
 
     case 7:
-      display.drawString(0, 15, "Press A for power on \nthe distance sensor");
+      display.drawString(0, 15, "Press A to turn on\nthe distance sensor");
       if(button1)
       {
         digitalWrite(SLEEP_12V, HIGH);
@@ -144,7 +144,7 @@ void loop() {
       if(!sensor && sensor != sensor_ant)
         detection_counter++;
       sensor_ant = sensor;
-      display.drawString(0, 0, "Change the sensor\ndetection some times\nSensor: " + String(sensor) + "\nDetection counter: " + String(detection_counter));
+      display.drawString(0, 0, "Change the sensor\ndetection repeatedly\nSensor: " + String(sensor) + "\nDetection counter: " + String(detection_counter));
       if(detection_counter >= 5)
         state++;
       break;
@@ -186,13 +186,13 @@ void loop() {
       stat2 = digitalRead(STAT2);
       display.drawString(0, 0, "PG: "
       + String(power_good) + " S1: " + String(stat1) + " S2: " + String(stat2)
-      + "\nShut down the switch");
+      + "\nTurn off the switch");
       if(!power_good && stat1 && !stat2)
         state++;
       break;
 
     default:
-      display.drawString(0, 15, "Test finished\nPress R for restart");
+      display.drawString(0, 15, "Test finished\nPress R to restart");
       break;
   }
   
