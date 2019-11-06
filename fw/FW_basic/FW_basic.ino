@@ -15,7 +15,7 @@ SSD1306Wire  display(DISPLAY_ADDRESS, I2C_SDA_DISP, I2C_SCL_DISP);
 #define TIMER_DISPLAY_PERIOD 1000 // us
 
 float tShow = 0;
-bool get_time = true;
+bool get_time = false;
 bool update_time = true;
 unsigned int best_time = 10000;
 unsigned long time_count = 0;
@@ -56,9 +56,9 @@ void setup() {
   ledcSetup(buzzer_pwm_channel,buzzer_pwm_freq,buzzer_pwm_resolution);
   ledcAttachPin(BUZZER_PWM, buzzer_pwm_channel);
   
-  pinMode(SENSOR, INPUT);
   pinMode(SLEEP_12V, OUTPUT);
   digitalWrite(SLEEP_12V, HIGH);
+  pinMode(SENSOR, INPUT);
   attachInterrupt(digitalPinToInterrupt(SENSOR), Sensor_isr, FALLING);
   
   batt = analogRead(BATT_MONITOR)*4.051/3679;
@@ -67,6 +67,8 @@ void setup() {
   display.flipScreenVertically();
   display.setFont(Crushed_Regular_65);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
+
+  bool get_time = true;
 }
 
 void loop() {
