@@ -15,7 +15,7 @@ Characteristics:
 - Expansion port for future improvements
 
 <p align="center">
-<img src="images/PCB_V1_0.png" width="600" align = "center">
+<img src="images/t2t_2.jpg" width="800" align = "center">
 </p>
 
 This project has been motivated because of the limitations that the last chronometer had. The main purpose is to communicate the system with the PC of the competition organization and facilitate the taking and visualization of the times.
