@@ -1,8 +1,8 @@
 /**********************************************************************
  * Project: Time2time
  * 
- * File description: This header file contains the links of the header 
- * files for the OLED display and its configuration parameters
+ * File description: This header file contains the parameters and 
+ * functions for controlling the OLED display
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -39,6 +39,7 @@
  * Global variables
  *********************************************************************/
 
-SSD1306Wire g_display(DISPLAY_ADDRESS, I2C_SDA_DISP, I2C_SCL_DISP); //todo: abstract g_display to local and add global functions
+SSD1306Wire g_display(DISPLAY_ADDRESS, I2C_SDA_DISP, I2C_SCL_DISP);
+//todo: abstract g_display to local and add global functions to control the display
 
 #endif /* DISPLAY_H */

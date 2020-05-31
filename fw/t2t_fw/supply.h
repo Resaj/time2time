@@ -2,7 +2,7 @@
  * Project: Time2time
  * 
  * File description: This header file contains the parameters and 
- * functions for monitor the battery voltage and control its charge
+ * functions for monitoring the battery voltage and control its charge
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -13,6 +13,8 @@
 
 #ifndef SUPPLY_H
 #define SUPPLY_H
+
+//todo: implement battery charge manager interface
 
 /**********************************************************************
  * Global configuration parameters

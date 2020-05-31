@@ -2,7 +2,8 @@
  * Project: Time2time
  * 
  * File description: This header file contains the parameters and 
- * functions for reading the state of the buttons
+ * functions for reading a distance sensor to detect the pass of the 
+ * robots
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -11,14 +12,14 @@
  * International (CC BY-NC-SA 4.0) 
  *********************************************************************/
 
-#ifndef BUTTON_H
-#define BUTTON_H
+#ifndef PASS_SENSOR_H
+#define PASS_SENSOR_H
 
-//todo: program button module
+//todo: program pass sensor module
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
 
-#endif /* BUTTON_H */
+#endif /* PASS_SENSOR_H */

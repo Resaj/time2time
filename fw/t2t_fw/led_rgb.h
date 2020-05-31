@@ -2,7 +2,7 @@
  * Project: Time2time
  * 
  * File description: This header file contains the parameters and 
- * functions for control a RGB LED
+ * functions for controlling a RGB LED
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team

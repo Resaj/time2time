@@ -2,7 +2,7 @@
  * Project: Time2time
  * 
  * File description: This code file contains the parameters and 
- * functions for reading the state of the buttons
+ * functions for controlling a buzzer
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -17,7 +17,7 @@
 
 #include "Arduino.h"
 #include "config/PINSEL.h"
-#include "buttons.h"
+#include "buzzer.h"
 
 /**********************************************************************
  * Configuration parameters

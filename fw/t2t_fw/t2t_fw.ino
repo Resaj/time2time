@@ -13,8 +13,10 @@
 
 #include "config/PINSEL.h"
 #include "buttons.h"
+#include "buzzer.h"
 #include "display.h"
 #include "led_rgb.h"
+#include "pass_sensor.h"
 #include "supply.h"
 
 bool button_A, button_B, button_C;
