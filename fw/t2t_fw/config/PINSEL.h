@@ -1,3 +1,21 @@
+/*****************************************************
+ * Project: Time2time
+ * 
+ * File description: This file contains the pins
+ * configurations for the peripherals connected to the
+ * microcontroller.
+ * 
+ * Author: Rubén Espino San José
+ * Puma Pride Robotics Team
+ * 
+ * License: Attribution-NonCommercial-ShareAlike 4.0
+ * International (CC BY-NC-SA 4.0) 
+ ****************************************************/
+
+#ifndef PINSEL_H
+#define PINSEL_H
+
+
 #define UART_TX			  1
 #define UART_RX			  3
 #define BUZZER_PWM		4
@@ -23,3 +41,6 @@
 #define BUTTON_A		  36 // BUTTON_1
 #define BUTTON_B		  39 // BUTTON_2
 #define BUTTON_C		  0 // LOAD/BUTTON_3
+
+
+#endif /* PINSEL_H */
