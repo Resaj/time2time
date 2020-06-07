@@ -51,7 +51,7 @@ unsigned int read_batteryVoltage(void)
 {
   unsigned int adc_value, pin_voltage, batt_volts;
   
-  adc_value = analogRead(BATT_MONITOR);
+  adc_value = analogRead(PIN_BATT_MONITOR);
   pin_voltage = adc_value * MAX_ADC_VOLT / MAX_ADC_DIGITS;  // Convert ADC value to volts*1000 //todo: change the formule to linearize the ADC ESP32 transfer function
   batt_volts = pin_voltage * (BATT_MONITOR_R1 + BATT_MONITOR_R2)/BATT_MONITOR_R2; // Convert pin volts to battery volts
 
@@ -75,7 +75,7 @@ void batt_monitor_init(void)
  * @brief Reads the battery ADC input, converts it to a voltaje value 
  * and applies low-pass filter
  */
-void measure_battery_voltage(void)
+void measure_batteryVoltage(void)
 {
   unsigned int actual_batt_voltage;
 

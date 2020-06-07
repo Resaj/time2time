@@ -19,8 +19,6 @@
 #include "pass_sensor.h"
 #include "supply.h"
 
-bool button_A, button_B, button_C;
-
 int buzzer_pwm_freq = 2000;
 int buzzer_pwm_channel = 0;
 int buzzer_pwm_resolution = 8;
@@ -59,14 +57,11 @@ unsigned long buzzer_count = 0;
 
 
 void setup() {
-  pinMode(BUTTON_A, INPUT);
-  pinMode(BUTTON_B, INPUT);
-  pinMode(BUTTON_C, INPUT);
-  
   batt_monitor_init();
+  buttons_init();
 
   ledcSetup(buzzer_pwm_channel,buzzer_pwm_freq,buzzer_pwm_resolution);
-  ledcAttachPin(BUZZER_PWM, buzzer_pwm_channel);
+  ledcAttachPin(PIN_BUZZER_PWM, buzzer_pwm_channel);
   
   g_display.init();
   g_display.flipScreenVertically();
@@ -82,19 +77,19 @@ void setup() {
 
   while(1)
   {
-    readButtons();
+    read_buttons();
 
-    if(!button_A)
+    if(get_button_state(BUTTON_A))
     {
       measureMode = NORMAL_LAP_TIME;
       break;
     }
-    if(!button_B)
+    if(get_button_state(BUTTON_B))
     {
       measureMode = X_LAPS_TIME;
       break;
     }
-    if(!button_C)
+    if(get_button_state(BUTTON_C))
     {
       measureMode = START_STOP;
       g_display.flipScreenVertically();
@@ -102,14 +97,12 @@ void setup() {
     }
   }
 
-  pinMode(SLEEP_12V, OUTPUT);
-  digitalWrite(SLEEP_12V, HIGH);
-  pinMode(SENSOR, INPUT);
+  pinMode(PIN_SLEEP_12V, OUTPUT);
+  digitalWrite(PIN_SLEEP_12V, HIGH);
+  pinMode(PIN_SENSOR, INPUT);
   delay(100);
-  attachInterrupt(digitalPinToInterrupt(SENSOR), Sensor_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), Sensor_isr, FALLING);
 
-  batt_monitor_init();
-  
   get_time = true;
 }
 
@@ -126,7 +119,7 @@ void loop() {
 //    control display
 //    control t2t mode
 
-  readButtons();
+  read_buttons();
   
   switch(measureMode)
   {
@@ -170,13 +163,6 @@ void buzzer_function(void)
     batt_count = millis();
     set_rgb_red(g_batt_voltage < BATT_VOLT_ALARM ? LED_ON : LED_OFF);
   }
-}
-
-void readButtons(void)
-{
-  button_A = digitalRead(BUTTON_A);
-  button_B = digitalRead(BUTTON_B);
-  button_C = digitalRead(BUTTON_C);
 }
 
 void drawTime(unsigned long TimeDisp) {
@@ -315,7 +301,7 @@ void x_laps_time_method()
   else if(update_time == true)
     drawTime(millis() - time_count + time_sum);
 
-  if(!button_C)
+  if(get_button_state(BUTTON_C))
   {
     timeInit = false;
     update_time = true;

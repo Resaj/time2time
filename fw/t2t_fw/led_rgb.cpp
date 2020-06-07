@@ -26,16 +26,6 @@
 #define INVERTED_LOGIC true //true: led on at low level; false: led on at high level
 
 /**********************************************************************
- * Local variables
- *********************************************************************/
-
-
-/**********************************************************************
- * Local functions
- *********************************************************************/
-
-
-/**********************************************************************
  * Global functions
  *********************************************************************/
 
@@ -45,9 +35,9 @@
  */
 void rgb_led_init(void)
 {
-  pinMode(LED_R, OUTPUT);
-  pinMode(LED_G, OUTPUT);
-  pinMode(LED_B, OUTPUT);
+  pinMode(PIN_LED_R, OUTPUT);
+  pinMode(PIN_LED_G, OUTPUT);
+  pinMode(PIN_LED_B, OUTPUT);
 
   turn_off_rgb();
 }
@@ -69,7 +59,7 @@ void turn_off_rgb(void)
  */
 void set_rgb_red(bool state)
 {
-  digitalWrite(LED_R, INVERTED_LOGIC? !state:state);
+  digitalWrite(PIN_LED_R, INVERTED_LOGIC? !state:state);
 }
 
 /**********************************************************************
@@ -79,7 +69,7 @@ void set_rgb_red(bool state)
  */
 void set_rgb_green(bool state)
 {
-  digitalWrite(LED_G, INVERTED_LOGIC? !state:state);
+  digitalWrite(PIN_LED_G, INVERTED_LOGIC? !state:state);
 }
 
 /**********************************************************************
@@ -89,7 +79,7 @@ void set_rgb_green(bool state)
  */
 void set_rgb_blue(bool state)
 {
-  digitalWrite(LED_B, INVERTED_LOGIC? !state:state);
+  digitalWrite(PIN_LED_B, INVERTED_LOGIC? !state:state);
 }
 
 //todo: add functions to control the leds brigth with a PWM

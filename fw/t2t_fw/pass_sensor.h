@@ -21,5 +21,7 @@
  * Global functions
  *********************************************************************/
 
+//todo: configure SLEEP_12V
+
 
 #endif /* PASS_SENSOR_H */

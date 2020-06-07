@@ -39,7 +39,7 @@
  * Global variables
  *********************************************************************/
 
-SSD1306Wire g_display(DISPLAY_ADDRESS, I2C_SDA_DISP, I2C_SCL_DISP);
+SSD1306Wire g_display(DISPLAY_ADDRESS, PIN_I2C_SDA_DISP, PIN_I2C_SCL_DISP);
 //todo: abstract g_display to local and add global functions to control the display
 
 #endif /* DISPLAY_H */

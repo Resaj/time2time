@@ -14,11 +14,20 @@
 #ifndef BUTTON_H
 #define BUTTON_H
 
-//todo: program button module
+/**********************************************************************
+ * Defines
+ *********************************************************************/
+
+#define BUTTON_A  0
+#define BUTTON_B  1
+#define BUTTON_C  2
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
+void buttons_init(void);
+void read_buttons(void);
+bool get_button_state(unsigned int);
 
 #endif /* BUTTON_H */

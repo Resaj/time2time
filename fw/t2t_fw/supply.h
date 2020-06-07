@@ -14,7 +14,7 @@
 #ifndef SUPPLY_H
 #define SUPPLY_H
 
-//todo: implement battery charge manager interface
+//todo: implement battery charge manager interface (POWER_GOOD, STAT1, STAT2)
 
 /**********************************************************************
  * Global configuration parameters
@@ -33,6 +33,6 @@ extern unsigned int g_batt_voltage; // volts * 1000
  *********************************************************************/
 
 void batt_monitor_init(void);
-void measure_battery_voltage(void);
+void measure_batteryVoltage(void);
 
 #endif /* SUPPLY_H */
