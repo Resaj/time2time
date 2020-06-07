@@ -15,13 +15,17 @@
 #ifndef PASS_SENSOR_H
 #define PASS_SENSOR_H
 
-//todo: program pass sensor module
+/**********************************************************************
+ * Global variables
+ *********************************************************************/
+
+extern bool sensor_interrupt_flag;
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
-//todo: configure SLEEP_12V
-
+void pass_sensor_init(void);
+void release_sensor_detection(void);
 
 #endif /* PASS_SENSOR_H */

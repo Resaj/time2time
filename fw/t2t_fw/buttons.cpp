@@ -77,7 +77,7 @@ void buttons_init(void)
 }
 
 /**********************************************************************
- * @brief Reads all the button status and storage them localy
+ * @brief Reads all the button status and storage them locally
  */
 void read_buttons(void)
 {
@@ -89,6 +89,7 @@ void read_buttons(void)
 /**********************************************************************
  * @brief returns the button state. True = actived; false = unactived
  * 
+ * @param button_number: the number of the button to be read
  * @returns battery voltage (volts * 1000)
  */
 bool get_button_state(unsigned int button_number)

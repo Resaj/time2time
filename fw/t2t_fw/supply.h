@@ -17,10 +17,23 @@
 //todo: implement battery charge manager interface (POWER_GOOD, STAT1, STAT2)
 
 /**********************************************************************
+ * Includes
+ *********************************************************************/
+
+#include "Arduino.h"
+
+/**********************************************************************
  * Global configuration parameters
  *********************************************************************/
 
 #define BATT_VOLT_ALARM   3500  // Minimum battery volts to active low battery warning (volts * 1000)
+
+/**********************************************************************
+ * Defines
+ *********************************************************************/
+
+#define POWER_12V_ON  HIGH
+#define POWER_12V_OFF LOW
 
 /**********************************************************************
  * Global variables
@@ -34,5 +47,7 @@ extern unsigned int g_batt_voltage; // volts * 1000
 
 void batt_monitor_init(void);
 void measure_batteryVoltage(void);
+void power_12v_init(void);
+void power_12v_enable(unsigned int);
 
 #endif /* SUPPLY_H */

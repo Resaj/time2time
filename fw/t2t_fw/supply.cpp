@@ -83,3 +83,22 @@ void measure_batteryVoltage(void)
   
   g_batt_voltage = (unsigned int)((float)(actual_batt_voltage)*(1-ALPHA_LP_FILTER) + (float)g_batt_voltage*ALPHA_LP_FILTER); // Apply low-pass filter
 }
+
+/**********************************************************************
+ * @brief Initializes the 12V supply, controlled with a enable pin
+ */
+void power_12v_init(void)
+{
+  pinMode(PIN_SLEEP_12V, OUTPUT);
+  power_12v_enable(POWER_12V_ON);
+}
+
+/**********************************************************************
+ * @brief Enable/disable the 12V supply
+ *
+ * @param enable: 1/0
+ */
+void power_12v_enable(unsigned int enable)
+{
+  digitalWrite(PIN_SLEEP_12V, enable);
+}

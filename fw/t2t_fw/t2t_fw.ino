@@ -23,15 +23,6 @@ int buzzer_pwm_freq = 2000;
 int buzzer_pwm_channel = 0;
 int buzzer_pwm_resolution = 8;
 
-portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-bool sensor_interrupt_flag = false;
-void IRAM_ATTR Sensor_isr()
-{
-  portENTER_CRITICAL_ISR(&mux);
-  sensor_interrupt_flag = true;
-  portEXIT_CRITICAL_ISR(&mux);
-}
-
 char measureMode = 0;
 #define NORMAL_LAP_TIME   0
 #define X_LAPS_TIME       1
@@ -97,11 +88,7 @@ void setup() {
     }
   }
 
-  pinMode(PIN_SLEEP_12V, OUTPUT);
-  digitalWrite(PIN_SLEEP_12V, HIGH);
-  pinMode(PIN_SENSOR, INPUT);
-  delay(100);
-  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), Sensor_isr, FALLING);
+  pass_sensor_init();
 
   get_time = true;
 }
@@ -197,9 +184,7 @@ void normal_lap_time_method()
 {
   if(sensor_interrupt_flag == true)
   {
-    portENTER_CRITICAL(&mux);
-    sensor_interrupt_flag = false;
-    portEXIT_CRITICAL(&mux);
+    release_sensor_detection();
 
     if(timeInit == false)
     {
@@ -249,9 +234,7 @@ void x_laps_time_method()
 {
   if(sensor_interrupt_flag == true)
   {
-    portENTER_CRITICAL(&mux);
-    sensor_interrupt_flag = false;
-    portEXIT_CRITICAL(&mux);
+    release_sensor_detection();
 
     if(timeInit == false)
     {
@@ -308,10 +291,8 @@ void x_laps_time_method()
     get_time = true;
     time_sum = 0;
     laps = 0;
-    
-    portENTER_CRITICAL(&mux);
-    sensor_interrupt_flag = false;
-    portEXIT_CRITICAL(&mux);
+
+    release_sensor_detection();
   }
 }
 
@@ -321,9 +302,7 @@ void start_stop_method()
   
 //  if(sensor_interrupt_flag == true)
 //  {
-//    portENTER_CRITICAL(&mux);
-//    sensor_interrupt_flag = false;
-//    portEXIT_CRITICAL(&mux);
+//    release_sensor_detection();
 //
 //    if(timeInit == false)
 //    {
@@ -381,8 +360,22 @@ void start_stop_method()
 //    time_sum = 0;
 //    laps = 0;
 //    
-//    portENTER_CRITICAL(&mux);
-//    sensor_interrupt_flag = false;
-//    portEXIT_CRITICAL(&mux);
+//    release_sensor_detection();
 //  }
+}
+
+void sleep(void)
+{
+  //todo: red led to blink state
+  //todo: shut down the display
+  //todo: disable sensor interrupt
+  power_12v_enable(POWER_12V_OFF);
+}
+
+void wake_up(void)
+{
+  power_12v_enable(POWER_12V_ON);
+  //todo: disable sensor interrupt
+  //todo: turn on the display
+  //todo: shut down red led
 }
