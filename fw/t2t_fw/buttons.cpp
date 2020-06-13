@@ -31,10 +31,10 @@
  *********************************************************************/
 
 typedef struct{
-  unsigned int pin; // uC pin connected to the button
-  bool state;       // Button status filtered
-  char logic;       // Button logic
-  bool flag;        // Filtering flag
+  unsigned char pin;    // uC pin connected to the button
+  unsigned char state;  // Button status filtered
+  char logic;           // Button logic
+  bool flag;            // Filtering flag
 }s_button;
 
 /**********************************************************************
@@ -53,7 +53,7 @@ s_button *buttons[3];
 
 void read_button(s_button button)
 {
-  bool state = digitalRead(button.pin);
+  unsigned char state = digitalRead(button.pin);
 //todo: add filter with flag
   button.state = (button.logic == INVERTED)? !state: state;
 }
@@ -87,12 +87,12 @@ void read_buttons(void)
 }
 
 /**********************************************************************
- * @brief returns the button state. True = actived; false = unactived
+ * @brief returns the button state. 1 = actived; 0 = unactived
  * 
  * @param button_number: the number of the button to be read
  * @returns battery voltage (volts * 1000)
  */
-bool get_button_state(unsigned int button_number)
+unsigned char get_button_state(button_list button_number)
 {
   return buttons[button_number]->state;
 }

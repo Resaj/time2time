@@ -15,12 +15,14 @@
 #define BUTTON_H
 
 /**********************************************************************
- * Defines
+ * Defines & enums
  *********************************************************************/
 
-#define BUTTON_A  0
-#define BUTTON_B  1
-#define BUTTON_C  2
+enum button_list {
+  BUTTON_A,
+  BUTTON_B,
+  BUTTON_C
+};
 
 /**********************************************************************
  * Global functions
@@ -28,6 +30,6 @@
 
 void buttons_init(void);
 void read_buttons(void);
-bool get_button_state(unsigned int);
+unsigned char get_button_state(button_list);
 
 #endif /* BUTTON_H */

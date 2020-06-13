@@ -55,9 +55,9 @@ void turn_off_rgb(void)
 /**********************************************************************
  * @brief Sets on/off the red of the RGB LED
  * 
- * @param state on/off
+ * @param state: 1 (on) or 0 (off)
  */
-void set_rgb_red(bool state)
+void set_rgb_red(unsigned char state)
 {
   digitalWrite(PIN_LED_R, INVERTED_LOGIC? !state:state);
 }
@@ -65,9 +65,9 @@ void set_rgb_red(bool state)
 /**********************************************************************
  * @brief Sets on/off the green of the RGB LED
  * 
- * @param state on/off
+ * @param state: 1 (on) or 0 (off)
  */
-void set_rgb_green(bool state)
+void set_rgb_green(unsigned char state)
 {
   digitalWrite(PIN_LED_G, INVERTED_LOGIC? !state:state);
 }
@@ -75,9 +75,9 @@ void set_rgb_green(bool state)
 /**********************************************************************
  * @brief Sets on/off the blue of the RGB LED
  * 
- * @param state on/off
+ * @param state: 1 (on) or 0 (off)
  */
-void set_rgb_blue(bool state)
+void set_rgb_blue(unsigned char state)
 {
   digitalWrite(PIN_LED_B, INVERTED_LOGIC? !state:state);
 }

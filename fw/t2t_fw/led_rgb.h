@@ -27,8 +27,8 @@
 
 void rgb_led_init(void);
 void turn_off_rgb(void);
-void set_rgb_red(bool);
-void set_rgb_green(bool);
-void set_rgb_blue(bool);
+void set_rgb_red(unsigned char);
+void set_rgb_green(unsigned char);
+void set_rgb_blue(unsigned char);
 
 #endif /* LED_RGB_H */
