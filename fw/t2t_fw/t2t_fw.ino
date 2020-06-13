@@ -19,10 +19,6 @@
 #include "pass_sensor.h"
 #include "supply.h"
 
-int buzzer_pwm_freq = 2000;
-int buzzer_pwm_channel = 0;
-int buzzer_pwm_resolution = 8;
-
 char measureMode = 0;
 #define NORMAL_LAP_TIME   0
 #define X_LAPS_TIME       1
@@ -42,17 +38,11 @@ unsigned long time_sum = 0;
 unsigned int target_laps = 3;
 unsigned int laps = 0;
 
-bool enable_buzzer = false;
-bool enable_double_beep = false;
-unsigned long buzzer_count = 0;
-
 
 void setup() {
   batt_monitor_init();
   buttons_init();
-
-  ledcSetup(buzzer_pwm_channel,buzzer_pwm_freq,buzzer_pwm_resolution);
-  ledcAttachPin(PIN_BUZZER_PWM, buzzer_pwm_channel);
+  buzzer_init();
   
   g_display.init();
   g_display.flipScreenVertically();
@@ -123,33 +113,14 @@ void loop() {
       break;
   }
 
-  if(enable_buzzer == true && millis() - buzzer_count > 50)
-  {
-    enable_buzzer = false;
-    ledcWrite(buzzer_pwm_channel, 0);
+  buzzer_task();
 
-    if(enable_double_beep == true)
-      buzzer_count = millis();
-  }
-
-  buzzer_function();
-}
-
-void buzzer_function(void)
-{
-  if(enable_double_beep == true && enable_buzzer == false && millis() - buzzer_count > 90)
-  {
-    enable_double_beep = false;
-    enable_buzzer = true;
-    ledcWrite(buzzer_pwm_channel, 125);
-    buzzer_count = millis();
-  }
-  
   if(millis() - batt_count > 500)
   {
     batt_count = millis();
     set_rgb_red(g_batt_voltage < BATT_VOLT_ALARM ? LED_ON : LED_OFF);
   }
+
 }
 
 void drawTime(unsigned long TimeDisp) {
@@ -191,9 +162,7 @@ void normal_lap_time_method()
       timeInit = true;
       time_count = millis();
 
-      enable_buzzer = true;
-      ledcWrite(buzzer_pwm_channel, 125);
-      buzzer_count = millis();
+      set_buzzer_mode(SIMPLE_BEEP);
       get_time = false;
     }
     
@@ -204,11 +173,10 @@ void normal_lap_time_method()
       if(time_lap < best_time)
       {
         best_time = time_lap;
-        enable_double_beep = true;
+        set_buzzer_mode(DOUBLE_BEEP);
       }
-      enable_buzzer = true;
-      ledcWrite(buzzer_pwm_channel, 125);
-      buzzer_count = millis();
+      else
+        set_buzzer_mode(SIMPLE_BEEP);
       drawTime(time_lap);
   
       get_time = false;
@@ -221,7 +189,7 @@ void normal_lap_time_method()
     update_time = true;
     last_lap_time = time_lap;
   }
-  if (get_time == false && millis() - time_count >= 1000)
+  if(get_time == false && millis() - time_count >= 1000)
     get_time = true;
 
   if(timeInit == false)
@@ -241,9 +209,7 @@ void x_laps_time_method()
       timeInit = true;
       time_count = millis();
 
-      enable_buzzer = true;
-      ledcWrite(buzzer_pwm_channel, 125);
-      buzzer_count = millis();
+      set_buzzer_mode(SIMPLE_BEEP);
       get_time = false;
     }
     
@@ -257,11 +223,10 @@ void x_laps_time_method()
       if(time_lap < best_time)
       {
         best_time = time_lap;
-        enable_double_beep = true;
+        set_buzzer_mode(DOUBLE_BEEP);
       }
-      enable_buzzer = true;
-      ledcWrite(buzzer_pwm_channel, 125);
-      buzzer_count = millis();
+      else
+        set_buzzer_mode(SIMPLE_BEEP);
       drawTime(time_lap);
   
       get_time = false;
@@ -274,7 +239,7 @@ void x_laps_time_method()
     update_time = true;
     last_lap_time = time_lap;
   }
-  if (get_time == false && millis() - time_count >= 1000 && laps < target_laps)
+  if(get_time == false && millis() - time_count >= 1000 && laps < target_laps)
     get_time = true;
   if(laps == target_laps && millis() - time_count >= 1000)
     drawTime(time_sum);
@@ -298,70 +263,8 @@ void x_laps_time_method()
 
 void start_stop_method()
 {
+  //todo: program start/stop operating mode
   set_rgb_blue(LED_ON);
-  
-//  if(sensor_interrupt_flag == true)
-//  {
-//    release_sensor_detection();
-//
-//    if(timeInit == false)
-//    {
-//      timeInit = true;
-//      time_count = millis();
-//
-//      enable_buzzer = true;
-//      ledcWrite(buzzer_pwm_channel, 125);
-//      buzzer_count = millis();
-//      get_time = false;
-//    }
-//    
-//    if(get_time == true && laps < target_laps)
-//    {
-//      laps++;
-//
-//      time_lap = millis() - time_count;
-//      time_count = millis();
-//      time_sum += time_lap;
-//      if(time_lap < best_time)
-//      {
-//        best_time = time_lap;
-//        enable_double_beep = true;
-//      }
-//      enable_buzzer = true;
-//      ledcWrite(buzzer_pwm_channel, 125);
-//      buzzer_count = millis();
-//      drawTime(time_lap);
-//  
-//      get_time = false;
-//      update_time = false;
-//    }
-//  }
-//  
-//  if(update_time == false && millis() - time_count >= 2000 && timeInit == true && laps < target_laps)
-//  {
-//    update_time = true;
-//    last_lap_time = time_lap;
-//  }
-//  if (get_time == false && millis() - time_count >= 1000 && laps < target_laps)
-//    get_time = true;
-//  if(laps == target_laps && millis() - time_count >= 1000)
-//    drawTime(time_sum);
-//
-//  if(timeInit == false)
-//    drawTime(0);
-//  else if(update_time == true)
-//    drawTime(millis() - time_count + time_sum);
-//
-//  if(!button_C)
-//  {
-//    timeInit = false;
-//    update_time = true;
-//    get_time = true;
-//    time_sum = 0;
-//    laps = 0;
-//    
-//    release_sensor_detection();
-//  }
 }
 
 void sleep(void)

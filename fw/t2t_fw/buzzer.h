@@ -14,11 +14,22 @@
 #ifndef BUZZER_H
 #define BUZZER_H
 
-//todo: program buzzer module
+/**********************************************************************
+ * Defines & enums
+ *********************************************************************/
+
+enum buzzer_mode_list{
+  MUTE,
+  SIMPLE_BEEP,
+  DOUBLE_BEEP
+};
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
+void buzzer_init(void);
+void set_buzzer_mode(buzzer_mode_list);
+void buzzer_task(void);
 
 #endif /* BUZZER_H */
