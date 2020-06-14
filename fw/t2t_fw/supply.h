@@ -29,13 +29,6 @@
 #define BATT_VOLT_ALARM   3500  // Minimum battery volts to active low battery warning (volts * 1000)
 
 /**********************************************************************
- * Defines
- *********************************************************************/
-
-#define POWER_12V_ON  HIGH
-#define POWER_12V_OFF LOW
-
-/**********************************************************************
  * Global variables
  *********************************************************************/
 
@@ -48,6 +41,7 @@ extern unsigned int g_batt_voltage; // volts * 1000
 void batt_monitor_init(void);
 void measure_batteryVoltage(void);
 void power_12v_init(void);
-void power_12v_enable(unsigned int);
+void power_12v_enable(void);
+void power_12v_disable(void);
 
 #endif /* SUPPLY_H */

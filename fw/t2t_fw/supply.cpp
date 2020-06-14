@@ -32,6 +32,13 @@
 #define ALPHA_LP_FILTER   4/5   // Quantity of the above battery measure to impact in the low pass filter
 
 /**********************************************************************
+ * Defines
+ *********************************************************************/
+
+#define POWER_12V_ON  HIGH
+#define POWER_12V_OFF LOW
+
+/**********************************************************************
  * Global variables
  *********************************************************************/
 
@@ -90,15 +97,21 @@ void measure_batteryVoltage(void)
 void power_12v_init(void)
 {
   pinMode(PIN_SLEEP_12V, OUTPUT);
-  power_12v_enable(POWER_12V_ON);
+  power_12v_enable();
 }
 
 /**********************************************************************
- * @brief Enable/disable the 12V supply
- *
- * @param enable: 1/0
+ * @brief Enable the 12V supply
  */
-void power_12v_enable(unsigned int enable)
+void power_12v_enable(void)
 {
-  digitalWrite(PIN_SLEEP_12V, enable);
+  digitalWrite(PIN_SLEEP_12V, POWER_12V_ON);
+}
+
+/**********************************************************************
+ * @brief Disable the 12V supply
+ */
+void power_12v_disable(void)
+{
+  digitalWrite(PIN_SLEEP_12V, POWER_12V_OFF);
 }

@@ -11,7 +11,6 @@
  * International (CC BY-NC-SA 4.0) 
  *********************************************************************/
 
-//#include "config/PINSEL.h"
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
@@ -118,7 +117,6 @@ void loop() {
     batt_count = millis();
     set_rgb_red(g_batt_voltage < BATT_VOLT_ALARM ? LED_ON : LED_OFF);
   }
-
 }
 
 void normal_lap_time_method()
@@ -275,12 +273,12 @@ void sleep(void)
   //todo: red led to blink state
   //      shut down the display
   //      disable sensor interrupt
-  power_12v_enable(POWER_12V_OFF);
+  power_12v_disable();
 }
 
 void wake_up(void)
 {
-  power_12v_enable(POWER_12V_ON);
+  power_12v_enable();
   //todo: disable sensor interrupt
   //      turn on the display
   //      shut down red led
