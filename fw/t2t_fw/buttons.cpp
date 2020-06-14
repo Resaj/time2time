@@ -30,12 +30,12 @@
  * Structs
  *********************************************************************/
 
-typedef struct{
+typedef struct {
   unsigned char pin;    // uC pin connected to the button
   unsigned char state;  // Button status filtered
   char logic;           // Button logic
   bool flag;            // Filtering flag
-}s_button;
+} s_button;
 
 /**********************************************************************
  * Local variables

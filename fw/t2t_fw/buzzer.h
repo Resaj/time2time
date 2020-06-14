@@ -18,7 +18,7 @@
  * Defines & enums
  *********************************************************************/
 
-enum buzzer_mode_list{
+enum buzzer_mode_list {
   MUTE,
   SIMPLE_BEEP,
   DOUBLE_BEEP

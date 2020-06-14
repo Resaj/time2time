@@ -11,7 +11,7 @@
  * International (CC BY-NC-SA 4.0) 
  *********************************************************************/
 
-#include "config/PINSEL.h"
+//#include "config/PINSEL.h"
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
@@ -38,23 +38,21 @@ unsigned long time_sum = 0;
 unsigned int target_laps = 3;
 unsigned int laps = 0;
 
-
 void setup() {
+  s_display_text text[4] = {
+    /* Text                   , pos_X , pos_Y , font      , aligment */
+    { "Select mode:"          , 0     , 0     , MENU_FONT , ALIGN_LEFT },
+    { "A: Normal lap time"    , 0     , 15    , MENU_FONT , ALIGN_LEFT },
+    { "B: 3 laps time"        , 0     , 30    , MENU_FONT , ALIGN_LEFT },
+    { "C: Star/Stop (2x t2t)" , 0     , 45    , MENU_FONT , ALIGN_LEFT }
+  };
+
   batt_monitor_init();
   buttons_init();
   buzzer_init();
-  
-  g_display.init();
-  g_display.flipScreenVertically();
-  g_display.setFont(Dialog_plain_11);
-  g_display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display_init();
 
-  g_display.clear();
-  g_display.drawString(0, 0, "Select mode:");
-  g_display.drawString(0, 15, "A: Normal lap time");
-  g_display.drawString(0, 30, "B: 3 laps time");
-  g_display.drawString(0, 45, "C: Star/Stop (2x t2t)");
-  g_display.display();
+  display_set_data(text);
 
   while(1)
   {
@@ -73,7 +71,6 @@ void setup() {
     if(get_button_state(BUTTON_C))
     {
       measureMode = START_STOP;
-      g_display.flipScreenVertically();
       break;
     }
   }
@@ -114,6 +111,7 @@ void loop() {
   }
 
   buzzer_task();
+  display_task();
 
   if(millis() - batt_count > 500)
   {
@@ -123,36 +121,14 @@ void loop() {
 
 }
 
-void drawTime(unsigned long TimeDisp) {
-  g_display.clear();
-  switch(measureMode)
-  {
-    case NORMAL_LAP_TIME:
-      g_display.setFont(Crushed_Regular_50);
-      g_display.drawString(0, 0, String(TimeDisp/1000.0, 3));
-      g_display.setFont(Dialog_plain_11);
-      g_display.drawString(30, 50, "Last lap: " + String(last_lap_time/1000.0, 3));
-      break;
-      
-    case X_LAPS_TIME:
-      g_display.setFont(Crushed_Regular_50);
-      g_display.drawString(0, 0, String(TimeDisp/1000.0, 3));
-      g_display.setFont(Dialog_plain_11);
-      if(laps < target_laps)
-        g_display.drawString(30, 50, "Laps to go: " + String(target_laps - laps));
-      else
-        g_display.drawString(10, 50, "Press C to restart: ");
-      break;
-      
-    case START_STOP:
-      start_stop_method();
-      break;
-  }
-  g_display.display();
-}
-
 void normal_lap_time_method()
 {
+  static s_display_text text[2] = {
+    /* Text , pos_X , pos_Y , font                , aligment */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT },
+    {  ""   , 30    , 50    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  };
+
   if(sensor_interrupt_flag == true)
   {
     release_sensor_detection();
@@ -177,8 +153,7 @@ void normal_lap_time_method()
       }
       else
         set_buzzer_mode(SIMPLE_BEEP);
-      drawTime(time_lap);
-  
+
       get_time = false;
       update_time = false;
     }
@@ -193,13 +168,27 @@ void normal_lap_time_method()
     get_time = true;
 
   if(timeInit == false)
-    drawTime(0);
+  {
+    sprintf(text[0].text, "0.000");
+    sprintf(text[1].text, "");
+    display_set_data(text);
+  }
   else if(update_time == true)
-    drawTime(millis() - time_count);
+  {
+    sprintf(text[0].text, "%.3f", time_lap/1000.0);
+    sprintf(text[1].text, "Last lap: %.3f", time_lap/1000.0);
+    display_set_data(text);
+  }
 }
 
-void x_laps_time_method()
+void x_laps_time_method(void)
 {
+  static s_display_text text[2] = {
+    /* Text , pos_X , pos_Y , font                , aligment */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT },
+    {  ""   , 30    , 50    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  };
+
   if(sensor_interrupt_flag == true)
   {
     release_sensor_detection();
@@ -227,8 +216,11 @@ void x_laps_time_method()
       }
       else
         set_buzzer_mode(SIMPLE_BEEP);
-      drawTime(time_lap);
-  
+
+      sprintf(text[0].text, "%.3f", time_lap/1000.0);
+      sprintf(text[1].text, "Laps to go: %u", target_laps - laps);
+      display_set_data(text);
+
       get_time = false;
       update_time = false;
     }
@@ -242,12 +234,23 @@ void x_laps_time_method()
   if(get_time == false && millis() - time_count >= 1000 && laps < target_laps)
     get_time = true;
   if(laps == target_laps && millis() - time_count >= 1000)
-    drawTime(time_sum);
+  {
+    sprintf(text[0].text, "%.3f", time_sum/1000.0);
+    sprintf(text[1].text, "Press C to restart");
+    display_set_data(text);
+  }
 
   if(timeInit == false)
-    drawTime(0);
+  {
+    sprintf(text[0].text, "0.000");
+    sprintf(text[1].text, "Laps to go: %u", target_laps);
+    display_set_data(text);
+  }
   else if(update_time == true)
-    drawTime(millis() - time_count + time_sum);
+  {
+    sprintf(text[0].text, "%.3f", (millis() - time_count + time_sum)/1000.0);
+    display_set_data(text);
+  }
 
   if(get_button_state(BUTTON_C))
   {
@@ -270,8 +273,8 @@ void start_stop_method()
 void sleep(void)
 {
   //todo: red led to blink state
-  //todo: shut down the display
-  //todo: disable sensor interrupt
+  //      shut down the display
+  //      disable sensor interrupt
   power_12v_enable(POWER_12V_OFF);
 }
 
@@ -279,6 +282,6 @@ void wake_up(void)
 {
   power_12v_enable(POWER_12V_ON);
   //todo: disable sensor interrupt
-  //todo: turn on the display
-  //todo: shut down red led
+  //      turn on the display
+  //      shut down red led
 }

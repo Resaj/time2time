@@ -39,7 +39,7 @@
 #define BUZZER_ON   HIGH
 #define BUZZER_OFF  LOW
 
-enum beep_state{
+enum beep_state {
   BEEP_INIT,
   BEEP1,
   BEEP_MUTE,
@@ -70,7 +70,7 @@ void buzzer_pwm_set(unsigned char state)
 /**********************************************************************
  * @brief Makes a simple beep with the buzzer
  * 
- *  returns result: 1 = done; 0 = in progress
+ * @returns result: 1 = done; 0 = in progress
  */
 unsigned char simple_beep(void)
 {
@@ -104,7 +104,7 @@ unsigned char simple_beep(void)
 /**********************************************************************
  * @brief Makes a double beep with the buzzer
  * 
- *  returns result: 1 = done; 0 = in progress
+ * @returns result: 1 = done; 0 = in progress
  */
 unsigned char double_beep(void)
 {

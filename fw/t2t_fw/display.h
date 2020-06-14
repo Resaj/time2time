@@ -15,31 +15,40 @@
 #define DISPLAY_H
 
 /**********************************************************************
- * Includes
+ * Enums
  *********************************************************************/
 
-// Display library
-#include "SSD1306Wire.h"
+typedef enum {
+  MENU_FONT,
+  MAIN_TIME_FONT,
+  SECONDARY_TIME_FONT
+} text_font;
 
-// Fonts libraries
-#include "fonts/Crushed_Regular_50.h"
-#include "fonts/Dialog_plain_11.h"
-
-// Other needed libraries
-#include "config/PINSEL.h"
+typedef enum {
+  ALIGN_LEFT,
+  ALIGN_CENTER,
+  ALIGN_RIGHT
+} text_aligment;
 
 /**********************************************************************
- * Configuration parameters
+ * Structs
  *********************************************************************/
 
-#define DISPLAY_ADDRESS 0x3C
-#define DISPLAY_REFRESH_PERIOD 1000 // us
+typedef struct {
+  char *text;            // Text to show
+  unsigned char pos_X;    // Text position X
+  unsigned char pos_Y;    // Text position Y
+  text_font     font;     // Font and letter dimensions
+  text_aligment aligment; // Text aligment
+} s_display_text;
 
 /**********************************************************************
- * Global variables
+ * Global functions
  *********************************************************************/
 
-SSD1306Wire g_display(DISPLAY_ADDRESS, PIN_I2C_SDA_DISP, PIN_I2C_SCL_DISP);
-//todo: abstract g_display to local and add global functions to control the display
+void display_init(void);
+void display_clear(void);
+void display_set_data(s_display_text *);
+void display_task(void);
 
 #endif /* DISPLAY_H */
