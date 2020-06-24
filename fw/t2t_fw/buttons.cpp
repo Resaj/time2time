@@ -23,18 +23,22 @@
  * Configuration parameters
  *********************************************************************/
 
-#define INVERTED      0 // Button logic: actived when output is 0
-#define NON_INVERTED  1 // Button logic: actived when output is 1
+#define INVERTED        0   // Button logic: actived when output is 0
+#define NON_INVERTED    1   // Button logic: actived when output is 1
+
+#define FILTERING_TIME  50  // Minimum time in ms with button actived to filter voltage noise
 
 /**********************************************************************
  * Structs
  *********************************************************************/
 
 typedef struct {
-  unsigned char pin;    // uC pin connected to the button
-  unsigned char state;  // Button status filtered
-  char logic;           // Button logic
-  bool flag;            // Filtering flag
+  unsigned char pin;        // uC pin connected to the button
+  unsigned char raw_state;  // Button state (read directly from the pin)
+  unsigned char state;      // Button state (filtered)
+  char logic;               // Button logic
+  unsigned long time_flag;  // Filtering time flag
+  bool detection_flag;      // Continuous detection avoidance flag
 } s_button;
 
 /**********************************************************************
@@ -58,9 +62,24 @@ s_button *buttons[3];
  */
 void read_button(s_button button)
 {
-  unsigned char state = digitalRead(button.pin);
-//todo: add filter with flag
-  button.state = (button.logic == INVERTED)? !state: state;
+  unsigned char raw_state = digitalRead(button.pin);
+  raw_state = (button.logic == INVERTED)? !raw_state : raw_state;
+
+  /* Filter voltage noise */
+  if(raw_state)
+  {
+    if(millis() - button.time_flag >= FILTERING_TIME)
+      button.raw_state = raw_state;
+  }
+  else
+  {
+    button.raw_state = raw_state;
+    button.time_flag = millis();
+  }
+
+  /* Avoid continuos detection */
+  button.state = (button.raw_state && button.detection_flag)? 1 : 0;
+  button.detection_flag = button.raw_state ? false : true;
 }
 
 /**********************************************************************
