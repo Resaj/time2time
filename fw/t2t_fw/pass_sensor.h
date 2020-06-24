@@ -20,6 +20,7 @@
  *********************************************************************/
 
 extern bool sensor_interrupt_flag;
+extern unsigned long time_detection;
 
 /**********************************************************************
  * Global functions

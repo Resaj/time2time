@@ -29,7 +29,7 @@ enum button_list {
  *********************************************************************/
 
 void buttons_init(void);
-void read_buttons(void);
+void buttons_task(void);
 unsigned char get_button_state(button_list);
 
 #endif /* BUTTON_H */

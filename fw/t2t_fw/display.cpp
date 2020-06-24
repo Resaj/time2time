@@ -99,11 +99,11 @@ void display_set_data(s_display_text *display_data)
 
     switch(display_data[i].aligment)
     {
-      case ALIGN_CENTER: //@todo: probar
+      case ALIGN_CENTER:
         g_display.setTextAlignment(TEXT_ALIGN_CENTER);
         break;
         
-      case ALIGN_RIGHT: //@todo: probar
+      case ALIGN_RIGHT:
         g_display.setTextAlignment(TEXT_ALIGN_RIGHT);
         break;
 

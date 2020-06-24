@@ -39,7 +39,7 @@ extern unsigned int g_batt_voltage; // volts * 1000
  *********************************************************************/
 
 void batt_monitor_init(void);
-void measure_batteryVoltage(void);
+void supply_task(void);
 void power_12v_init(void);
 void power_12v_enable(void);
 void power_12v_disable(void);

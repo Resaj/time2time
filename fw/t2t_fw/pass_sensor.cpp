@@ -38,6 +38,7 @@ portMUX_TYPE enable_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for 
  *********************************************************************/
 
 bool sensor_interrupt_flag = false;
+unsigned long time_detection = 0;
 
 /**********************************************************************
  * Global functions
@@ -50,8 +51,13 @@ bool sensor_interrupt_flag = false;
 void IRAM_ATTR Sensor_isr(void)
 {
   portENTER_CRITICAL_ISR(&enable_critical_zone);
-  //todo: capture the instant of time to get a more accurate measurement. Storage the time in a variable before the operations.
-  sensor_interrupt_flag = true;
+  
+  if(!sensor_interrupt_flag)
+  {
+    time_detection = millis();
+    sensor_interrupt_flag = true;
+  }
+  
   portEXIT_CRITICAL_ISR(&enable_critical_zone);
 }
 

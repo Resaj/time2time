@@ -51,6 +51,11 @@ s_button *buttons[3];
  * Local functions
  *********************************************************************/
 
+/**********************************************************************
+ * @brief Reads the status of the buttons
+ * 
+ * @param button: struct data of button which is going to be read
+ */
 void read_button(s_button button)
 {
   unsigned char state = digitalRead(button.pin);
@@ -77,9 +82,10 @@ void buttons_init(void)
 }
 
 /**********************************************************************
- * @brief Reads all the button status and storage them locally
+ * @brief Reads all the button status and storages them locally. This 
+ * function has to be called periodically through an scheduler
  */
-void read_buttons(void)
+void buttons_task(void)
 {
   read_button(button_A);
   read_button(button_B);

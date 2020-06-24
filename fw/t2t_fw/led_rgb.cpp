@@ -82,5 +82,15 @@ void set_rgb_blue(unsigned char state)
   digitalWrite(PIN_LED_B, INVERTED_LOGIC? !state:state);
 }
 
-//todo: add functions to control the leds brigth with a PWM
-//todo: add functions to control the blink mode (square, triangle and sinusoidal waves) of the leds
+/**********************************************************************
+ * @brief Controls the RGB led state. This function has to be called 
+ * periodically through an scheduler
+ */
+void leds_task(void)
+{
+  /* Nothing to do at the moment */
+}
+
+//todo: add defines for the blink mode (no_blink, square, triangle or sinusoidal), period, duty cycle (for square wave) and min and max bright
+//todo: control the leds brigth with a PWM, like the buzzer control
+//todo: abstract set and turn off functions locally. Create global function to set the desired states and manage them in the task function
