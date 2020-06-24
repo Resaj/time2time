@@ -64,19 +64,6 @@ program_substate substate = INIT_SUBSTATE;
  *********************************************************************/
 
 /**********************************************************************
- * @brief Initializes all the systems of time2time device
- */
-void init_t2t(void)
-{
-  batt_monitor_init();
-  buttons_init();
-  pass_sensor_init();
-  buzzer_init();
-  display_init();
-  rgb_led_init();
-}
-
-/**********************************************************************
  * @brief Shows the main menu with the different t2t options
  */
 void show_main_menu(void)
@@ -412,7 +399,6 @@ void state_machine_task(void)
   {
     case INIT_STATE:
       /* state actions */
-      init_t2t();
       show_main_menu();
 
       /* test state changes */

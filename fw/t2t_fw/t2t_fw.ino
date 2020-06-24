@@ -52,6 +52,12 @@ void tasks_500ms(void)
 }
 
 void setup() {
+  batt_monitor_init();
+  buttons_init();
+  pass_sensor_init();
+  buzzer_init();
+  display_init();
+  rgb_led_init();
 }
 
 void loop() {

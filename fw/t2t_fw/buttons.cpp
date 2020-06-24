@@ -33,21 +33,22 @@
  *********************************************************************/
 
 typedef struct {
-  unsigned char pin;        // uC pin connected to the button
-  unsigned char raw_state;  // Button state (read directly from the pin)
-  unsigned char state;      // Button state (filtered)
-  char logic;               // Button logic
-  unsigned long time_flag;  // Filtering time flag
-  bool detection_flag;      // Continuous detection avoidance flag
+  unsigned char pin;          // uC pin connected to the button
+  unsigned char raw_state;    // Button state (read directly from the pin)
+  unsigned char level_state;  // Button level signal state filtered: 1 = HIGH; 0 = LOW
+  unsigned char edge_state;   // Button edge signal state filtered: 1 = rising edge; 0 = rest of cases
+  char logic;                 // Button logic
+  unsigned long time_flag;    // Filtering time flag
+  bool detection_flag;        // Continuous detection avoidance flag
 } s_button;
 
 /**********************************************************************
  * Local variables
  *********************************************************************/
 
-s_button button_A = {PIN_BUTTON_A, false, INVERTED, false};
-s_button button_B = {PIN_BUTTON_B, false, INVERTED, false};
-s_button button_C = {PIN_BUTTON_C, false, INVERTED, false};
+s_button button_A = {PIN_BUTTON_A, 0, 0, 0, INVERTED, 0, 0};
+s_button button_B = {PIN_BUTTON_B, 0, 0, 0, INVERTED, 0, 0};
+s_button button_C = {PIN_BUTTON_C, 0, 0, 0, INVERTED, 0, 0};
 
 s_button *buttons[3];
 
@@ -60,26 +61,25 @@ s_button *buttons[3];
  * 
  * @param button: struct data of button which is going to be read
  */
-void read_button(s_button button)
+void read_button(s_button *button)
 {
-  unsigned char raw_state = digitalRead(button.pin);
-  raw_state = (button.logic == INVERTED)? !raw_state : raw_state;
+  button->raw_state = (button->logic == INVERTED)? !digitalRead(button->pin) : digitalRead(button->pin);
 
   /* Filter voltage noise */
-  if(raw_state)
+  if(button->raw_state)
   {
-    if(millis() - button.time_flag >= FILTERING_TIME)
-      button.raw_state = raw_state;
+    if(millis() - button->time_flag >= FILTERING_TIME)
+      button->level_state = button->raw_state;
   }
   else
   {
-    button.raw_state = raw_state;
-    button.time_flag = millis();
+    button->level_state = button->raw_state;
+    button->time_flag = millis();
   }
 
   /* Avoid continuos detection */
-  button.state = (button.raw_state && button.detection_flag)? 1 : 0;
-  button.detection_flag = button.raw_state ? false : true;
+  button->edge_state = (button->level_state && button->detection_flag) ? 1 : 0;
+  button->detection_flag = button->level_state ? false : true;
 }
 
 /**********************************************************************
@@ -106,9 +106,8 @@ void buttons_init(void)
  */
 void buttons_task(void)
 {
-  read_button(button_A);
-  read_button(button_B);
-  read_button(button_C);
+  for(int i=0; i<sizeof(buttons)/sizeof(s_button*); i++)
+    read_button(buttons[i]);
 }
 
 /**********************************************************************
@@ -119,5 +118,5 @@ void buttons_task(void)
  */
 unsigned char get_button_state(button_list button_number)
 {
-  return buttons[button_number]->state;
+  return buttons[button_number]->edge_state;
 }
