@@ -23,7 +23,7 @@
  * Configuration parameters
  *********************************************************************/
  
-#define PWM_FREQ            2000
+#define PWM_FREQ_HZ         2000
 #define PWM_CHANNEL         0
 #define PWM_RESOLUTION      8
 #define PWM_DUTY_CYCLE_ON   (unsigned int)255/2 // Value between 0 and 255
@@ -41,9 +41,10 @@
 
 enum beep_state {
   BEEP_INIT,
-  BEEP1,
+  BEEP,
   BEEP_MUTE,
-  BEEP2
+  BEEP2,
+  BEEP_MUTE2
 };
 
 /**********************************************************************
@@ -74,7 +75,9 @@ void buzzer_pwm_set(unsigned char state)
  */
 unsigned char simple_beep(void)
 {
+//todo: send the beep duration as parameter
   static unsigned long t = 0;
+  unsigned long t_now = 0;
   unsigned char result = 0;
   
   switch(beep)
@@ -82,18 +85,28 @@ unsigned char simple_beep(void)
     case BEEP_INIT:
       t = millis();
       buzzer_pwm_set(BUZZER_ON);
-      beep = BEEP1;
+      beep = BEEP;
       break;
-      
-    case BEEP1:
-      if(millis() - t >= BEEP_DURATION)
+
+    case BEEP:
+      t_now = millis();
+      if(t_now - t >= BEEP_DURATION)
       {
         buzzer_pwm_set(BUZZER_OFF);
+        beep = BEEP_MUTE;
+        t = t_now;
+      }
+      break;
+
+    case BEEP_MUTE:
+      if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
+      {
+        buzzer_pwm_set(BUZZER_ON);
         beep = BEEP_INIT;
         result = 1;
       }
       break;
-      
+
     default:
       break;
   }
@@ -101,6 +114,7 @@ unsigned char simple_beep(void)
   return result;
 }
 
+//todo: delete double_beep and convert to double call to simple_beep
 /**********************************************************************
  * @brief Makes a double beep with the buzzer
  * 
@@ -117,10 +131,10 @@ unsigned char double_beep(void)
     case BEEP_INIT:
       t = millis();
       buzzer_pwm_set(BUZZER_ON);
-      beep = BEEP1;
+      beep = BEEP;
       break;
       
-    case BEEP1:
+    case BEEP:
       t_now = millis();
       if(t_now - t >= BEEP_DURATION)
       {
@@ -132,7 +146,6 @@ unsigned char double_beep(void)
 
     case BEEP_MUTE:
       t_now = millis();
-      
       if(t_now - t >= MUTE_DURATION_BETWEEN_BEEPS)
       {
         buzzer_pwm_set(BUZZER_ON);
@@ -142,9 +155,19 @@ unsigned char double_beep(void)
       break;
 
     case BEEP2:
-      if(millis() - t >= BEEP_DURATION)
+      t_now = millis();
+      if(t_now - t >= BEEP_DURATION)
       {
         buzzer_pwm_set(BUZZER_OFF);
+        beep = BEEP_MUTE2;
+        t = t_now;
+      }
+      break;
+
+    case BEEP_MUTE2:
+      if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
+      {
+        buzzer_pwm_set(BUZZER_ON);
         beep = BEEP_INIT;
         result = 1;
       }
@@ -166,7 +189,7 @@ unsigned char double_beep(void)
  */
 void buzzer_init(void)
 {
-  ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(PWM_CHANNEL, PWM_FREQ_HZ, PWM_RESOLUTION);
   ledcAttachPin(PIN_BUZZER_PWM, PWM_CHANNEL);
 }
 
@@ -187,7 +210,9 @@ void set_buzzer_mode(buzzer_mode_list selected_mode)
 void buzzer_task(void)
 {
   unsigned char done = 0;
-  
+
+  //todo: make a task list to reproduce secuential orders
+
   switch(buzzer_mode)
   {
     case SIMPLE_BEEP:
