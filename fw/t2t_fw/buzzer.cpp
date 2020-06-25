@@ -52,7 +52,7 @@ enum beep_state {
  *********************************************************************/
 
 buzzer_mode_list buzzer_mode = MUTE;
-beep_state beep = BEEP_MUTE;
+beep_state beep = BEEP_INIT;
 
 /**********************************************************************
  * Local functions
@@ -100,11 +100,7 @@ unsigned char simple_beep(void)
 
     case BEEP_MUTE:
       if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
-      {
-        buzzer_pwm_set(BUZZER_ON);
-        beep = BEEP_INIT;
         result = 1;
-      }
       break;
 
     default:
@@ -166,11 +162,7 @@ unsigned char double_beep(void)
 
     case BEEP_MUTE2:
       if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
-      {
-        buzzer_pwm_set(BUZZER_ON);
-        beep = BEEP_INIT;
         result = 1;
-      }
       break;
 
     default:
@@ -228,5 +220,8 @@ void buzzer_task(void)
   }
 
   if(done)
+  {
     buzzer_mode = MUTE;
+    beep = BEEP_INIT;
+  }
 }
