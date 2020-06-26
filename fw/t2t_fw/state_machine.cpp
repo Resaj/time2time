@@ -69,14 +69,14 @@ program_substate substate = INIT_SUBSTATE;
 void show_main_menu(void)
 {
   s_display_text text[4] = {
-    /* Text                   , pos_X , pos_Y , font      , aligment */
+    /* text                   , pos_X , pos_Y , font      , aligment */
     { "Select mode:"          , 0     , 0     , MENU_FONT , ALIGN_LEFT },
     { "A: Normal lap time"    , 0     , 15    , MENU_FONT , ALIGN_LEFT },
     { "B: 3 laps time"        , 0     , 30    , MENU_FONT , ALIGN_LEFT },
     { "C: Star/Stop (2x t2t)" , 0     , 45    , MENU_FONT , ALIGN_LEFT }
   };
 
-  display_set_data(text);
+  display_set_data(text, sizeof(text)/sizeof(s_display_text));
 }
 
 /**********************************************************************
@@ -101,7 +101,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Ready");
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
       release_sensor_detection();
       
@@ -125,7 +125,7 @@ void normal_lap_time_mode(void)
       t_now = millis();
       sprintf(text[0].text, "%.3f", (t_now - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
       set_buzzer_mode(SIMPLE_BEEP);
 
@@ -141,7 +141,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
       sprintf(text[0].text, "%.3f", (millis() - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
       if(sensor_interrupt_flag)
@@ -152,7 +152,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
       sprintf(text[0].text, "%.3f", (time_detection - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       if((time_detection - time_last_detection) < best_time_lap_ms)
       {
@@ -224,7 +224,7 @@ void x_laps_time_mode(void)
       
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Ready");
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
       release_sensor_detection();
       
@@ -249,7 +249,7 @@ void x_laps_time_mode(void)
       t_now = millis();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       set_buzzer_mode(SIMPLE_BEEP);
 
@@ -267,7 +267,7 @@ void x_laps_time_mode(void)
       t_now = millis();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
       if(sensor_interrupt_flag)
@@ -280,7 +280,7 @@ void x_laps_time_mode(void)
 
       sprintf(text[0].text, "%.3f", (time_detection - time_last_detection)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       if((time_detection - time_last_detection) < best_time_lap_ms)
       {
@@ -327,7 +327,7 @@ void x_laps_time_mode(void)
       
       sprintf(text[0].text, "%.3f", (time_detection - time_init)/1000.0);
       sprintf(text[1].text, "Press B to restart");
-      display_set_data(text);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
       substate = FINISHED;

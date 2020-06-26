@@ -35,11 +35,11 @@ typedef enum {
  *********************************************************************/
 
 typedef struct {
-  char *text;            // Text to show
-  unsigned char pos_X;    // Text position X
-  unsigned char pos_Y;    // Text position Y
-  text_font     font;     // Font and letter dimensions
-  text_aligment aligment; // Text aligment
+  char text[25];            // Text to show
+  unsigned char pos_X;      // Text position X
+  unsigned char pos_Y;      // Text position Y
+  text_font     font;       // Font and letter dimensions
+  text_aligment alignment;  // Text alignment
 } s_display_text;
 
 /**********************************************************************
@@ -48,7 +48,7 @@ typedef struct {
 
 void display_init(void);
 void display_clear(void);
-void display_set_data(s_display_text *);
+void display_set_data(s_display_text *, char);
 void display_task(void);
 
 #endif /* DISPLAY_H */

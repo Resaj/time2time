@@ -36,8 +36,8 @@
 /**********************************************************************
  * Global variables
  *********************************************************************/
-
-bool refresh_display = true;
+char text1[25], text2[25], text3[25]; //todo: delete this
+bool refresh_display = false;
 
 /**********************************************************************
  * Global variables
@@ -71,14 +71,13 @@ void display_clear(void)
  * 
  * @param display_data: contains text lines, positions, fonts and 
  * aligment
+ * @param num_lines: number of lines to write on the screen
  */
-void display_set_data(s_display_text *display_data)
+void display_set_data(s_display_text *display_data, char num_lines)
 {
-  char i = 0;
-  
-  for(i=0; i< sizeof(display_data)/sizeof(s_display_text); i++)
+  for(char i=0; i<num_lines; i++)
   {
-    switch(display_data[i].font)
+    switch(display_data[i].font) /* Select font of the text */
     {
       case MENU_FONT:
         g_display.setFont(Dialog_plain_11);
@@ -97,7 +96,7 @@ void display_set_data(s_display_text *display_data)
         break;
     }
 
-    switch(display_data[i].aligment)
+    switch(display_data[i].alignment) /* Select alignment of the text */
     {
       case ALIGN_CENTER:
         g_display.setTextAlignment(TEXT_ALIGN_CENTER);
@@ -112,7 +111,7 @@ void display_set_data(s_display_text *display_data)
         break;
     }
 
-    g_display.drawString(display_data[i].pos_X, display_data[i].pos_Y, display_data[i].text);
+    g_display.drawString(display_data[i].pos_X, display_data[i].pos_Y, display_data[i].text); /* Save text and position data in the display */
   }
 
   refresh_display = true;
@@ -126,8 +125,8 @@ void display_task(void)
 {
   if(refresh_display)
   {
-    display_clear();
-    g_display.display();
+    g_display.display();  // Display data on the screen
+    display_clear();      // Clean display data for the next printing
     refresh_display = false;
   }
 }
