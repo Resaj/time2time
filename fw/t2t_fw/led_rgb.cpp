@@ -88,7 +88,7 @@ void set_rgb_blue(unsigned char state)
  */
 void leds_task(void)
 {
-  /* Nothing to do at the moment */
+  //todo: red blink when battery is low
 }
 
 //todo: add defines for the blink mode (no_blink, square, triangle or sinusoidal), period, duty cycle (for square wave) and min and max bright

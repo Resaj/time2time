@@ -29,7 +29,7 @@
 #define BATT_MONITOR_R2   120   // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
 #define BATT_VOLT_ALARM   3500  // Minimum battery volts to active low battery warning (volts * 1000)
 
-#define ALPHA_LP_FILTER   4/5   // Quantity of the above battery measure to impact in the low pass filter
+#define ALPHA_LP_FILTER   4.0/5 // Quantity of the above battery measure to impact in the low pass filter
 
 /**********************************************************************
  * Defines
@@ -75,7 +75,7 @@ void measure_batteryVoltage(void)
 
   actual_batt_voltage = read_batteryVoltage();
 
-  g_batt_voltage = (unsigned int)((float)(actual_batt_voltage)*(1-ALPHA_LP_FILTER) + (float)g_batt_voltage*ALPHA_LP_FILTER); // Apply low-pass filter
+  g_batt_voltage = (unsigned int)((actual_batt_voltage)*(1-ALPHA_LP_FILTER) + g_batt_voltage*ALPHA_LP_FILTER); // Apply low-pass filter
 }
 
 /**********************************************************************
