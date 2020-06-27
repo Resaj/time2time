@@ -54,10 +54,11 @@ enum get_time_mode {
 };
 
 /**********************************************************************
- * Local functions
+ * Local variables
  *********************************************************************/
 
 program_substate substate = INIT_SUBSTATE;
+unsigned int x_time_mode_target_laps = 3;
 
 /**********************************************************************
  * Local functions
@@ -68,7 +69,7 @@ program_substate substate = INIT_SUBSTATE;
  */
 void show_main_menu(void)
 {
-  s_display_text text[4] = {
+  s_display_text text[] = {
     /* text                   , pos_X , pos_Y , font      , aligment */
     { "Select mode:"          , 0     , 0     , MENU_FONT , ALIGN_LEFT },
     { "A: Normal lap time"    , 0     , 15    , MENU_FONT , ALIGN_LEFT },
@@ -89,10 +90,10 @@ void normal_lap_time_mode(void)
   static unsigned long time_last_lap_ms = 0;
   static unsigned long time_last_detection = 0;
   static unsigned long best_time_lap_ms = 1000000;
-  static s_display_text text[2] = {
-    /* Text , pos_X , pos_Y , font                , aligment */
-    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT },
-    {  ""   , 30    , 50    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  static s_display_text text[] = {
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
   switch(substate)
@@ -116,6 +117,7 @@ void normal_lap_time_mode(void)
       if(sensor_interrupt_flag)
       {
         time_last_detection = time_detection;
+        set_buzzer_mode(SIMPLE_BEEP);
         substate = SHOW_TIME_WITHOUT_DETECTION;
       }
       break;
@@ -127,8 +129,6 @@ void normal_lap_time_mode(void)
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
-      set_buzzer_mode(SIMPLE_BEEP);
-
       /* test substate changes */
       if(t_now - time_last_detection > 1000)
       {
@@ -185,7 +185,7 @@ void normal_lap_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(millis() - time_last_detection > 1000)
+      else if(millis() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       
@@ -207,20 +207,19 @@ void x_laps_time_mode(void)
   static unsigned long time_last_detection = 0;
   static unsigned long best_time_lap_ms = 1000000;
   static unsigned long best_time_total = 1000000;
-  unsigned int target_laps = 3;
-  unsigned int laps_to_go = 0;
+  static unsigned int laps_to_go = 0;
 
-  static s_display_text text[2] = {
-    /* text , pos_X , pos_Y , font                , aligment */
-    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT },
-    {  ""   , 30    , 50    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  static s_display_text text[] = {
+    /* text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
-      laps_to_go = target_laps;
+      laps_to_go = x_time_mode_target_laps;
       
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Ready");
@@ -240,6 +239,7 @@ void x_laps_time_mode(void)
       {
         time_init = time_detection;
         time_last_detection = time_init;
+        set_buzzer_mode(SIMPLE_BEEP);
         substate = SHOW_TIME_WITHOUT_DETECTION;
       }
       break;
@@ -250,8 +250,6 @@ void x_laps_time_mode(void)
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
-
-      set_buzzer_mode(SIMPLE_BEEP);
 
       /* test substate changes */
       if(t_now - time_detection > 1000)
@@ -317,7 +315,7 @@ void x_laps_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(millis() - time_last_detection > 1000)
+      else if(millis() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       
@@ -353,7 +351,33 @@ void x_laps_time_mode(void)
 void start_stop_mode(void)
 {
   //todo: program start/stop operating mode
-  set_rgb_blue(LED_ON);
+
+  static s_display_text text[] = {
+    /* text                 , pos_X , pos_Y , font      , aligment */
+    {  "Mode not ready yet" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
+    {  "Press C to exit"    , 0     , 15    , MENU_FONT , ALIGN_LEFT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* substate actions */
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+      
+      /* test substate changes */
+      substate = FINISHED;
+      break;
+      
+    case FINISHED:
+      /* substate actions */
+
+      /* test substate changes */
+      break;
+      
+    default:
+      break;
+  }
+  
 }
 
 /**********************************************************************
