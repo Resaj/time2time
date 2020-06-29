@@ -15,7 +15,6 @@
  * Includes
  *********************************************************************/
 
-#include "Arduino.h"
 #include "display.h"
 #include "config/PINSEL.h"
 
@@ -74,6 +73,8 @@ void display_clear(void)
  */
 void display_set_data(s_display_text *display_data, char num_lines)
 {
+  display_clear(); // Clean the display buffer before the next printing
+
   for(char i=0; i<num_lines; i++)
   {
     switch(display_data[i].font) /* Select font of the text */
@@ -125,7 +126,6 @@ void display_task(void)
   if(refresh_display)
   {
     g_display.display();  // Display data on the screen
-    display_clear();      // Clean display data for the next printing
     refresh_display = false;
   }
 }

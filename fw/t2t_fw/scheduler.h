@@ -1,8 +1,8 @@
 /**********************************************************************
  * Project: Time2time
  * 
- * File description: This program is used as a chronometer to measure 
- * times in robotics competitions.
+ * File description: This header file contains the parameters and 
+ * functions for controlling the scheduler of the program
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -11,37 +11,20 @@
  * International (CC BY-NC-SA 4.0) 
  *********************************************************************/
 
-/**********************************************************************
- * Includes
- *********************************************************************/
-
-#include "scheduler.h"
-#include "supply.h"
+#ifndef SCHEDULER_H
+#define SCHEDULER_H
 
 /**********************************************************************
- * Functions
+ * Global variables
  *********************************************************************/
 
-void setup() {
-  init_setup_task();
-}
+extern unsigned long t_now_ms;
 
-void loop() {
-  scheduler_task();
-}
+/**********************************************************************
+ * Global functions
+ *********************************************************************/
 
-void sleep(void)
-{
-  //todo: red led to blink state
-  //      shut down the display
-  //      disable sensor interrupt
-  power_12v_disable();
-}
+void init_setup_task(void);
+void scheduler_task(void);
 
-void wake_up(void)
-{
-  power_12v_enable();
-  //todo: disable sensor interrupt
-  //      turn on the display
-  //      shut down red led
-}
+#endif /* SCHEDULER_H */

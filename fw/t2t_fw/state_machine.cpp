@@ -16,12 +16,12 @@
  * Includes
  *********************************************************************/
 
-#include "Arduino.h"
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
 #include "led_rgb.h"
 #include "pass_sensor.h"
+#include "scheduler.h"
 #include "state_machine.h"
 #include "supply.h"
 
@@ -124,7 +124,7 @@ void normal_lap_time_mode(void)
       
     case SHOW_TIME_WITHOUT_DETECTION:
       /* substate actions */
-      t_now = millis();
+      t_now = t_now_ms;
       sprintf(text[0].text, "%.3f", (t_now - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -139,7 +139,7 @@ void normal_lap_time_mode(void)
     
     case WAIT_FOR_DETECTION:
       /* substate actions */
-      sprintf(text[0].text, "%.3f", (millis() - time_last_detection)/1000.0);
+      sprintf(text[0].text, "%.3f", (t_now_ms - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
@@ -161,6 +161,8 @@ void normal_lap_time_mode(void)
       }
       else
         set_buzzer_mode(SIMPLE_BEEP);
+      time_last_lap_ms = time_detection - time_last_detection;
+      time_last_detection = time_detection;
 
       /* test substate changes */
       substate = DETECTED_AND_SENSING_LOCKED;
@@ -170,10 +172,8 @@ void normal_lap_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(millis() - time_detection > 1000)
+      if(t_now_ms - time_detection > 1000)
       {
-        time_last_lap_ms = time_detection - time_last_detection;
-        time_last_detection = time_detection;
         release_sensor_detection();
         substate = DETECTED_AND_SENSING_ACTIVED;
       }
@@ -185,7 +185,7 @@ void normal_lap_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(millis() - time_last_detection > 2000)
+      else if(t_now_ms - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       
@@ -246,7 +246,7 @@ void x_laps_time_mode(void)
       
     case SHOW_TIME_WITHOUT_DETECTION:
       /* substate actions */
-      t_now = millis();
+      t_now = t_now_ms;
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -262,7 +262,7 @@ void x_laps_time_mode(void)
       
     case WAIT_FOR_DETECTION:
       /* substate actions */
-      t_now = millis();
+      t_now = t_now_ms;
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -287,6 +287,7 @@ void x_laps_time_mode(void)
       }
       else
         set_buzzer_mode(SIMPLE_BEEP);
+      time_last_detection = time_detection;
 
       /* test substate changes */
       substate = DETECTED_AND_SENSING_LOCKED;
@@ -296,13 +297,12 @@ void x_laps_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(millis() - time_detection > 1000)
+      if(t_now_ms - time_detection > 1000)
       {
         if(laps_to_go == 0)
           substate = SHOW_FINAL_TIME;
         else
         {
-          time_last_detection = time_detection;
           release_sensor_detection();
           substate = DETECTED_AND_SENSING_ACTIVED;
         }
@@ -315,7 +315,7 @@ void x_laps_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(millis() - time_last_detection > 2000)
+      else if(t_now_ms - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       

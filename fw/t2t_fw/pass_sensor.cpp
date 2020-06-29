@@ -16,9 +16,9 @@
  * Includes
  *********************************************************************/
 
-#include "Arduino.h"
 #include "config/PINSEL.h"
 #include "pass_sensor.h"
+#include "scheduler.h"
 #include "supply.h"
 
 /**********************************************************************
@@ -31,7 +31,7 @@
  * Local variables
  *********************************************************************/
 
-portMUX_TYPE enable_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for the interruption
+portMUX_TYPE sensor_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for the interruption
 
 /**********************************************************************
  * Global functions
@@ -48,17 +48,17 @@ unsigned long time_detection = 0;
  * @brief Sensor interruption. The program enters when sensor detects 
  * something
  */
-void IRAM_ATTR Sensor_isr(void)
+void IRAM_ATTR sensor_isr(void)
 {
-  portENTER_CRITICAL_ISR(&enable_critical_zone);
+  portENTER_CRITICAL_ISR(&sensor_critical_zone);
   
   if(!sensor_interrupt_flag)
   {
-    time_detection = millis();
+    time_detection = t_now_ms;
     sensor_interrupt_flag = true;
   }
   
-  portEXIT_CRITICAL_ISR(&enable_critical_zone);
+  portEXIT_CRITICAL_ISR(&sensor_critical_zone);
 }
 
 /**********************************************************************
@@ -68,9 +68,9 @@ void IRAM_ATTR Sensor_isr(void)
  */
 void release_sensor_detection(void)
 {
-  portENTER_CRITICAL(&enable_critical_zone);
+  portENTER_CRITICAL(&sensor_critical_zone);
   sensor_interrupt_flag = false;
-  portEXIT_CRITICAL(&enable_critical_zone);
+  portEXIT_CRITICAL(&sensor_critical_zone);
 }
 
 /**********************************************************************
@@ -82,5 +82,5 @@ void pass_sensor_init(void)
   power_12v_init();
   pinMode(PIN_SENSOR, INPUT);
   delay(100); // Delay needed to avoid false interruption detections
-  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), Sensor_isr, SENSOR_ACTIVE_EDGE);
+  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensor_isr, SENSOR_ACTIVE_EDGE);
 }

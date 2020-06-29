@@ -18,6 +18,7 @@
 #include "Arduino.h"
 #include "config/PINSEL.h"
 #include "buttons.h"
+#include "scheduler.h"
 
 /**********************************************************************
  * Configuration parameters
@@ -68,13 +69,13 @@ void read_button(s_button *button)
   /* Filter voltage noise */
   if(button->raw_state)
   {
-    if(millis() - button->time_flag >= FILTERING_TIME)
+    if(t_now_ms - button->time_flag >= FILTERING_TIME)
       button->level_state = button->raw_state;
   }
   else
   {
     button->level_state = button->raw_state;
-    button->time_flag = millis();
+    button->time_flag = t_now_ms;
   }
 
   /* Avoid continuos detection */

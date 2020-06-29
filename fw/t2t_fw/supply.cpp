@@ -15,7 +15,6 @@
  * Includes
  *********************************************************************/
 
-#include "Arduino.h"
 #include "config/PINSEL.h"
 #include "supply.h"
 

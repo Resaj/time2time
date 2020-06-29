@@ -18,6 +18,7 @@
 #include "Arduino.h"
 #include "config/PINSEL.h"
 #include "buzzer.h"
+#include "scheduler.h"
 
 /**********************************************************************
  * Configuration parameters
@@ -83,13 +84,13 @@ unsigned char simple_beep(void)
   switch(beep)
   {
     case BEEP_INIT:
-      t = millis();
+      t = t_now_ms;
       buzzer_pwm_set(BUZZER_ON);
       beep = BEEP;
       break;
 
     case BEEP:
-      t_now = millis();
+      t_now = t_now_ms;
       if(t_now - t >= BEEP_DURATION)
       {
         buzzer_pwm_set(BUZZER_OFF);
@@ -99,7 +100,7 @@ unsigned char simple_beep(void)
       break;
 
     case BEEP_MUTE:
-      if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
+      if(t_now_ms - t >= MUTE_DURATION_BETWEEN_BEEPS)
         result = 1;
       break;
 
@@ -125,13 +126,13 @@ unsigned char double_beep(void)
   switch(beep)
   {
     case BEEP_INIT:
-      t = millis();
+      t = t_now_ms;
       buzzer_pwm_set(BUZZER_ON);
       beep = BEEP;
       break;
       
     case BEEP:
-      t_now = millis();
+      t_now = t_now_ms;
       if(t_now - t >= BEEP_DURATION)
       {
         buzzer_pwm_set(BUZZER_OFF);
@@ -141,7 +142,7 @@ unsigned char double_beep(void)
       break;
 
     case BEEP_MUTE:
-      t_now = millis();
+      t_now = t_now_ms;
       if(t_now - t >= MUTE_DURATION_BETWEEN_BEEPS)
       {
         buzzer_pwm_set(BUZZER_ON);
@@ -151,7 +152,7 @@ unsigned char double_beep(void)
       break;
 
     case BEEP2:
-      t_now = millis();
+      t_now = t_now_ms;
       if(t_now - t >= BEEP_DURATION)
       {
         buzzer_pwm_set(BUZZER_OFF);
@@ -161,7 +162,7 @@ unsigned char double_beep(void)
       break;
 
     case BEEP_MUTE2:
-      if(millis() - t >= MUTE_DURATION_BETWEEN_BEEPS)
+      if(t_now_ms - t >= MUTE_DURATION_BETWEEN_BEEPS)
         result = 1;
       break;
 
