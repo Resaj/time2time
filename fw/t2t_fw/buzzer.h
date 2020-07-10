@@ -18,10 +18,11 @@
  * Defines & enums
  *********************************************************************/
 
-enum buzzer_mode_list {
-  MUTE,
+enum e_buzzer_mode {
   SIMPLE_BEEP,
-  DOUBLE_BEEP
+  DOUBLE_BEEP,
+  TRIPLE_BEEP,
+  LARGE_BEEP
 };
 
 /**********************************************************************
@@ -29,7 +30,7 @@ enum buzzer_mode_list {
  *********************************************************************/
 
 void buzzer_init(void);
-void set_buzzer_mode(buzzer_mode_list);
+void set_buzzer_mode(e_buzzer_mode);
 void buzzer_task(void);
 
 #endif /* BUZZER_H */

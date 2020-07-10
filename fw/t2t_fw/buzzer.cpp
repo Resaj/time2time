@@ -21,6 +21,12 @@
 #include "scheduler.h"
 
 /**********************************************************************
+ * Defines
+ *********************************************************************/
+
+#define BUZZER_STATE_BUFFER_SIZE   30
+
+/**********************************************************************
  * Configuration parameters
  *********************************************************************/
  
@@ -30,8 +36,12 @@
 #define PWM_DUTY_CYCLE_ON   (unsigned int)255/2 // Value between 0 and 255
 #define PWM_DUTY_CYCLE_OFF  0
 
-#define BEEP_DURATION                 50 // ms
-#define MUTE_DURATION_BETWEEN_BEEPS   90 // ms
+#define SHORT_BEEP_TIME           50  // ms
+#define LARGE_BEEP_TIME           800 // ms
+#define MUTE_TIME_BETWEEN_BEEPS   90  // ms
+#define MIN_MUTE_TIME_AT_FINISH   400 // ms
+#define SHORT_MUTE_TIME           MUTE_TIME_BETWEEN_BEEPS
+#define LARGE_MUTE_TIME           MIN_MUTE_TIME_AT_FINISH
 
 /**********************************************************************
  * Defines & enums
@@ -40,20 +50,22 @@
 #define BUZZER_ON   HIGH
 #define BUZZER_OFF  LOW
 
-enum beep_state {
-  BEEP_INIT,
-  BEEP,
-  BEEP_MUTE,
-  BEEP2,
-  BEEP_MUTE2
+enum e_buzzer_state {
+  BUZZER_BEEP_INIT,       // Inits the beep sound
+  BUZZER_SHORT_BEEP,      // Maintains beep during SHORT_BEEP_TIME
+  BUZZER_LARGE_BEEP,      // Maintains beep during LARGE_BEEP_TIME
+  BUZZER_SHORT_MUTE,      // Maintains silence during SHORT_MUTE_TIME and beeps again
+  BUZZER_LARGE_MUTE,      // Maintains silence during LARGE_MUTE_TIME and beeps again
+  BUZZER_MUTE_AND_STOP    // Maintains silence during LARGE_MUTE_TIME and stops the actual buzzer mode from e_buzzer_mode
 };
 
 /**********************************************************************
  * Local variables
  *********************************************************************/
 
-buzzer_mode_list buzzer_mode = MUTE;
-beep_state beep = BEEP_INIT;
+e_buzzer_state buzzer_state[BUZZER_STATE_BUFFER_SIZE];
+unsigned char buzzer_state_actual_index = 0;
+unsigned char buzzer_state_next_empty_index = 0;
 
 /**********************************************************************
  * Local functions
@@ -70,107 +82,89 @@ void buzzer_pwm_set(unsigned char state)
 }
 
 /**********************************************************************
- * @brief Makes a simple beep with the buzzer
+ * @brief Adds the selected state to the buzzer task circular buffer 
+ * and controls the index of the next empty buffer position
  * 
- * @returns result: 1 = done; 0 = in progress
+ * @param state: see the available values at e_buzzer_state
  */
-unsigned char simple_beep(void)
+void add_buzzer_state(e_buzzer_state state)
 {
-//todo: send the beep duration as parameter
-  static unsigned long t = 0;
-  unsigned long t_now = 0;
-  unsigned char result = 0;
-  
-  switch(beep)
-  {
-    case BEEP_INIT:
-      t = t_now_ms;
-      buzzer_pwm_set(BUZZER_ON);
-      beep = BEEP;
-      break;
-
-    case BEEP:
-      t_now = t_now_ms;
-      if(t_now - t >= BEEP_DURATION)
-      {
-        buzzer_pwm_set(BUZZER_OFF);
-        beep = BEEP_MUTE;
-        t = t_now;
-      }
-      break;
-
-    case BEEP_MUTE:
-      if(t_now_ms - t >= MUTE_DURATION_BETWEEN_BEEPS)
-        result = 1;
-      break;
-
-    default:
-      break;
-  }
-
-  return result;
+  buzzer_state[buzzer_state_next_empty_index] = state;
+  buzzer_state_next_empty_index = (buzzer_state_next_empty_index == BUZZER_STATE_BUFFER_SIZE - 1) ? 0 : buzzer_state_next_empty_index + 1;
 }
 
-//todo: delete double_beep and convert to double call to simple_beep
 /**********************************************************************
- * @brief Makes a double beep with the buzzer
+ * @brief Execute the next task of the buzzer circular buffer. This 
+ * function controls the beeps and their duration
  * 
- * @returns result: 1 = done; 0 = in progress
+ * The states are defined at e_buzzer_state.
+ * 
+ * @returns done: 1 = done; 0 = in progress
  */
-unsigned char double_beep(void)
+unsigned char do_buzzer_task(void)
 {
   static unsigned long t = 0;
   unsigned long t_now = 0;
-  unsigned char result = 0;
+  unsigned char done = 0;
   
-  switch(beep)
+  switch(buzzer_state[buzzer_state_actual_index])
   {
-    case BEEP_INIT:
-      t = t_now_ms;
+    case BUZZER_BEEP_INIT:
       buzzer_pwm_set(BUZZER_ON);
-      beep = BEEP;
+      t = t_now_ms;
+      done = 1;
       break;
       
-    case BEEP:
+    case BUZZER_SHORT_BEEP:
       t_now = t_now_ms;
-      if(t_now - t >= BEEP_DURATION)
+      if(t_now - t >= SHORT_BEEP_TIME)
       {
         buzzer_pwm_set(BUZZER_OFF);
-        beep = BEEP_MUTE;
         t = t_now;
+        done = 1;
       }
       break;
 
-    case BEEP_MUTE:
+    case BUZZER_LARGE_BEEP:
       t_now = t_now_ms;
-      if(t_now - t >= MUTE_DURATION_BETWEEN_BEEPS)
+      if(t_now - t >= LARGE_BEEP_TIME)
+      {
+        buzzer_pwm_set(BUZZER_OFF);
+        t = t_now;
+        done = 1;
+      }
+      break;
+
+    case BUZZER_SHORT_MUTE:
+      t_now = t_now_ms;
+      if(t_now - t >= SHORT_MUTE_TIME)
       {
         buzzer_pwm_set(BUZZER_ON);
-        beep = BEEP2;
         t = t_now;
+        done = 1;
       }
       break;
 
-    case BEEP2:
+    case BUZZER_LARGE_MUTE:
       t_now = t_now_ms;
-      if(t_now - t >= BEEP_DURATION)
+      if(t_now - t >= LARGE_MUTE_TIME)
       {
-        buzzer_pwm_set(BUZZER_OFF);
-        beep = BEEP_MUTE2;
+        buzzer_pwm_set(BUZZER_ON);
         t = t_now;
+        done = 1;
       }
       break;
 
-    case BEEP_MUTE2:
-      if(t_now_ms - t >= MUTE_DURATION_BETWEEN_BEEPS)
-        result = 1;
+    case BUZZER_MUTE_AND_STOP:
+      if(t_now_ms - t >= MIN_MUTE_TIME_AT_FINISH)
+        done = 1;
       break;
 
     default:
       break;
   }
 
-  return result;
+  return done;
 }
 
 /**********************************************************************
@@ -189,11 +183,45 @@ void buzzer_init(void)
 /**********************************************************************
  * @brief Sets the buzzer sound mode
  * 
- * @param selected_mode: see the available values in buzzer_mode_list
+ * @param selected_mode: see the available values at e_buzzer_mode
  */
-void set_buzzer_mode(buzzer_mode_list selected_mode)
+void set_buzzer_mode(e_buzzer_mode selected_mode)
 {
-  buzzer_mode = selected_mode;
+  switch(selected_mode)
+  {
+    case SIMPLE_BEEP:
+      add_buzzer_state(BUZZER_BEEP_INIT);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_MUTE_AND_STOP);
+      break;
+      
+    case DOUBLE_BEEP:
+      add_buzzer_state(BUZZER_BEEP_INIT);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_SHORT_MUTE);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_MUTE_AND_STOP);
+      break;
+      
+    case TRIPLE_BEEP:
+      add_buzzer_state(BUZZER_BEEP_INIT);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_SHORT_MUTE);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_SHORT_MUTE);
+      add_buzzer_state(BUZZER_SHORT_BEEP);
+      add_buzzer_state(BUZZER_MUTE_AND_STOP);
+      break;
+      
+    case LARGE_BEEP:
+      add_buzzer_state(BUZZER_BEEP_INIT);
+      add_buzzer_state(BUZZER_LARGE_BEEP);
+      add_buzzer_state(BUZZER_MUTE_AND_STOP);
+      break;
+
+    default:
+      break;
+  }
 }
 
 /**********************************************************************
@@ -202,27 +230,7 @@ void set_buzzer_mode(buzzer_mode_list selected_mode)
  */
 void buzzer_task(void)
 {
-  unsigned char done = 0;
-
-  //todo: make a task list to reproduce secuential orders
-
-  switch(buzzer_mode)
-  {
-    case SIMPLE_BEEP:
-      done = simple_beep();
-      break;
-      
-    case DOUBLE_BEEP:
-      done = double_beep();
-      break;
-      
-    default:
-      break;
-  }
-
-  if(done)
-  {
-    buzzer_mode = MUTE;
-    beep = BEEP_INIT;
-  }
+  if(buzzer_state_actual_index != buzzer_state_next_empty_index)
+    if(do_buzzer_task())
+      buzzer_state_actual_index = (buzzer_state_actual_index == BUZZER_STATE_BUFFER_SIZE - 1) ? 0 : buzzer_state_actual_index + 1;
 }
