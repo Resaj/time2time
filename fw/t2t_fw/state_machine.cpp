@@ -200,13 +200,13 @@ void normal_lap_time_mode(void)
  */
 void x_laps_time_mode(void)
 {
-  //todo: configure menu to chose number of laps
+  //todo: configure menu to chose number of laps. Reset best_time_total_ms if the number of laps changes
   
   unsigned long t_now = 0;
   static unsigned long time_init = 0;
   static unsigned long time_last_detection = 0;
   static unsigned long best_time_lap_ms = 1000000;
-  static unsigned long best_time_total = 1000000;
+  static unsigned long best_time_total_ms = 1000000;
   static unsigned int laps_to_go = 0;
 
   static s_display_text text[] = {
@@ -287,6 +287,18 @@ void x_laps_time_mode(void)
       }
       else
         set_buzzer_mode(SIMPLE_BEEP);
+
+      if(laps_to_go == 0)
+      {
+        if(time_detection - time_init < best_time_total_ms)
+        {
+          best_time_total_ms = time_detection - time_init;
+          set_buzzer_mode(TRIPLE_BEEP);
+        }
+        
+        set_buzzer_mode(LARGE_BEEP);
+      }
+
       time_last_detection = time_detection;
 
       /* test substate changes */
@@ -321,8 +333,6 @@ void x_laps_time_mode(void)
       
     case SHOW_FINAL_TIME:
       /* substate actions */
-      //todo: test if the final time is a new record and, in that case, save it and do triple beep with the buzzer
-      
       sprintf(text[0].text, "%.3f", (time_detection - time_init)/1000.0);
       sprintf(text[1].text, "Press B to restart");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
