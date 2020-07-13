@@ -23,10 +23,10 @@
  *********************************************************************/
 
 #define MAX_ADC_DIGITS    4095  // ADC (decimal value)
-#define MAX_ADC_VOLT      3300  // Maximum volts allowed at the ADC input pin (volts * 1000)
+#define MAX_ADC_VOLT      3300  // Maximum voltage allowed at the ADC input pin (millivolts)
 #define BATT_MONITOR_R1   47    // First resistor (to battery) of the divisor to monitor the battery (kOhmios)
 #define BATT_MONITOR_R2   120   // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
-#define BATT_VOLT_ALARM   3500  // Minimum battery volts to active low battery warning (volts * 1000)
+#define BATT_VOLT_ALARM   3500  // Minimum battery voltage to active low battery warning (millivolts)
 
 #define ALPHA_LP_FILTER   4.0/5 // Quantity of the above battery measure to impact in the low pass filter
 
@@ -41,7 +41,7 @@
  * Global variables
  *********************************************************************/
 
-unsigned int g_batt_voltage = 0; // volts * 1000
+unsigned int g_batt_voltage = 0; // millivolts
 
 /**********************************************************************
  * Local functions
@@ -51,17 +51,17 @@ unsigned int g_batt_voltage = 0; // volts * 1000
  * @brief Reads the battery ADC input and converts it to a voltaje 
  * value
  * 
- * @returns battery voltage (volts * 1000)
+ * @returns battery voltage (millivolts)
  */
 unsigned int read_batteryVoltage(void)
 {
-  unsigned int adc_value, pin_voltage, batt_volts;
+  unsigned int adc_value, pin_voltage, batt_voltage;
 
   adc_value = analogRead(PIN_BATT_MONITOR);
-  pin_voltage = adc_value * MAX_ADC_VOLT / MAX_ADC_DIGITS;  // Convert ADC value to volts*1000 //todo: change the formule to linearize the ADC ESP32 transfer function
-  batt_volts = pin_voltage * (BATT_MONITOR_R1 + BATT_MONITOR_R2)/BATT_MONITOR_R2; // Convert pin volts to battery volts
+  pin_voltage = (unsigned int)(290 + (adc_value*18.0/22) - pow((adc_value/2500.0),4)*1000.0/11);  // Convert ADC value to millivolts
+  batt_voltage = pin_voltage * (BATT_MONITOR_R1 + BATT_MONITOR_R2)/BATT_MONITOR_R2; // Convert pin voltage to battery voltage
 
-  return batt_volts;
+  return batt_voltage;
 }
 
 /**********************************************************************
