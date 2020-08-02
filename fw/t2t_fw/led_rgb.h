@@ -15,21 +15,34 @@
 #define LED_RGB_H
 
 /**********************************************************************
- * Defines
+ * Defines & enums
  *********************************************************************/
 
-#define LED_ON    HIGH
-#define LED_OFF   LOW
+#define MAX_BRIGHTNESS    256u
+#define MIN_BRIGHTNESS    0u
+
+typedef enum
+{
+  RGB_RED,
+  RGB_YELLOW,
+  RGB_GREEN,
+  RGB_CYAN,
+  RGB_BLUE,
+  RGB_MAGENTA,
+  RGB_WHITE,
+  RGB_BLACK // RGB led off
+} e_rgb_color;
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
 void rgb_led_init(void);
-void turn_off_rgb(void);
-void set_rgb_red(unsigned char);
-void set_rgb_green(unsigned char);
-void set_rgb_blue(unsigned char);
-void leds_task(void);
+void set_rgb_led_on_mode(e_rgb_color rgb_color, unsigned int brightness);
+void set_rgb_led_off_mode(void);
+void set_rgb_led_blink_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up);
+void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up);
+void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up);
+void led_task(void);
 
 #endif /* LED_RGB_H */
