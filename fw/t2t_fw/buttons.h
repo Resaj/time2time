@@ -30,6 +30,6 @@ enum button_list {
 
 void buttons_init(void);
 void buttons_task(void);
-unsigned char get_button_state(button_list);
+unsigned char get_button_state(button_list button_number);
 
 #endif /* BUTTON_H */

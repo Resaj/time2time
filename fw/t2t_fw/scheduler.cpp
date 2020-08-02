@@ -28,7 +28,7 @@
  * Configuration parameters
  *********************************************************************/
 
-#define TIMER_PERIOD 1 // ms
+#define TIMER_PERIOD 1u // ms
 
 /**********************************************************************
  * Structs
@@ -90,7 +90,7 @@ void tasks_10ms(void)
   buttons_task();
   buzzer_task();
   state_machine_task();
-  leds_task();
+  led_task();
     
   //todo: manage UART communication
   //todo: manage Wifi communication

@@ -26,7 +26,7 @@
  * Global configuration parameters
  *********************************************************************/
 
-#define BATT_VOLT_ALARM   3500  // Minimum battery voltage to active low battery warning (millivolts)
+#define BATT_VOLT_ALARM   3500u // Minimum battery voltage to active low battery warning (millivolts)
 
 /**********************************************************************
  * Global variables

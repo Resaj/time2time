@@ -21,31 +21,10 @@
 #include "scheduler.h"
 
 /**********************************************************************
- * Defines
+ * Defines & enums
  *********************************************************************/
 
 #define BUZZER_STATE_BUFFER_SIZE   30
-
-/**********************************************************************
- * Configuration parameters
- *********************************************************************/
- 
-#define PWM_FREQ_HZ         2000
-#define PWM_CHANNEL         0
-#define PWM_RESOLUTION      8
-#define PWM_DUTY_CYCLE_ON   (unsigned int)255/2 // Value between 0 and 255
-#define PWM_DUTY_CYCLE_OFF  0
-
-#define SHORT_BEEP_TIME           50  // ms
-#define LARGE_BEEP_TIME           800 // ms
-#define MUTE_TIME_BETWEEN_BEEPS   90  // ms
-#define MIN_MUTE_TIME_AT_FINISH   400 // ms
-#define SHORT_MUTE_TIME           MUTE_TIME_BETWEEN_BEEPS
-#define LARGE_MUTE_TIME           MIN_MUTE_TIME_AT_FINISH
-
-/**********************************************************************
- * Defines & enums
- *********************************************************************/
 
 #define BUZZER_ON   HIGH
 #define BUZZER_OFF  LOW
@@ -58,6 +37,23 @@ enum e_buzzer_state {
   BUZZER_LARGE_MUTE,      // Maintains silence during LARGE_MUTE_TIME and beeps again
   BUZZER_MUTE_AND_STOP    // Maintains silence during LARGE_MUTE_TIME and stops the actual buzzer mode from e_buzzer_mode
 };
+
+/**********************************************************************
+ * Configuration parameters
+ *********************************************************************/
+
+#define PWM_FREQ_HZ         2000u
+#define PWM_CHANNEL         0u
+#define PWM_RESOLUTION      8u
+#define PWM_DUTY_CYCLE_ON   (unsigned int)255/2 // Value between 0 and 255
+#define PWM_DUTY_CYCLE_OFF  0u
+
+#define SHORT_BEEP_TIME           50u   // ms
+#define LARGE_BEEP_TIME           800u  // ms
+#define MUTE_TIME_BETWEEN_BEEPS   90u   // ms
+#define MIN_MUTE_TIME_AT_FINISH   400u  // ms
+#define SHORT_MUTE_TIME           MUTE_TIME_BETWEEN_BEEPS
+#define LARGE_MUTE_TIME           MIN_MUTE_TIME_AT_FINISH
 
 /**********************************************************************
  * Local variables

@@ -30,7 +30,7 @@
  *********************************************************************/
 
 #define DISPLAY_ADDRESS 0x3C
-#define DISPLAY_REFRESH_PERIOD 1000 // us
+#define DISPLAY_REFRESH_PERIOD 1000u  // us
 
 /**********************************************************************
  * Global variables

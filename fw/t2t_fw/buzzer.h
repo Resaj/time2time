@@ -30,7 +30,7 @@ enum e_buzzer_mode {
  *********************************************************************/
 
 void buzzer_init(void);
-void set_buzzer_mode(e_buzzer_mode);
+void set_buzzer_mode(e_buzzer_mode selected_mode);
 void buzzer_task(void);
 
 #endif /* BUZZER_H */

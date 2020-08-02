@@ -22,11 +22,10 @@
  * Local configuration parameters
  *********************************************************************/
 
-#define MAX_ADC_DIGITS    4095  // ADC (decimal value)
-#define MAX_ADC_VOLT      3300  // Maximum voltage allowed at the ADC input pin (millivolts)
-#define BATT_MONITOR_R1   47    // First resistor (to battery) of the divisor to monitor the battery (kOhmios)
-#define BATT_MONITOR_R2   120   // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
-#define BATT_VOLT_ALARM   3500  // Minimum battery voltage to active low battery warning (millivolts)
+#define MAX_ADC_DIGITS    4095u // ADC (decimal value)
+#define MAX_ADC_VOLT      3300u // Maximum voltage allowed at the ADC input pin (millivolts)
+#define BATT_MONITOR_R1   47u   // First resistor (to battery) of the divisor to monitor the battery (kOhmios)
+#define BATT_MONITOR_R2   120u  // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
 
 #define ALPHA_LP_FILTER   4.0/5 // Quantity of the above battery measure to impact in the low pass filter
 

@@ -27,7 +27,7 @@
 #define INVERTED        0   // Button logic: actived when output is 0
 #define NON_INVERTED    1   // Button logic: actived when output is 1
 
-#define FILTERING_TIME  50  // Minimum time in ms with button actived to filter voltage noise
+#define FILTERING_TIME  50u  // Minimum time in ms with button actived to filter voltage noise
 
 /**********************************************************************
  * Structs
