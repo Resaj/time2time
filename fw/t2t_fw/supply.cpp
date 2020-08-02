@@ -41,6 +41,7 @@
  *********************************************************************/
 
 unsigned int g_batt_voltage = 0; // millivolts
+e_batt_charger_diag batt_charger_diag = NO_INPUT_POWER;
 
 /**********************************************************************
  * Local functions
@@ -77,6 +78,22 @@ void measure_batteryVoltage(void)
 }
 
 /**********************************************************************
+ * @brief Reads the status of the pins related to the battery charger
+ */
+void check_battery_charger(void)
+{
+  unsigned char power_good_status = 0;
+  unsigned char stat1_status = 0;
+  unsigned char stat2_status = 0;
+
+  power_good_status = digitalRead(PIN_POWER_GOOD);
+  stat1_status = digitalRead(PIN_STAT1);
+  stat2_status = digitalRead(PIN_STAT2);
+
+  batt_charger_diag = (e_batt_charger_diag)((stat1_status << 2) + (stat2_status << 1) + power_good_status);
+}
+
+/**********************************************************************
  * Global functions
  *********************************************************************/
 
@@ -86,6 +103,10 @@ void measure_batteryVoltage(void)
  */
 void batt_monitor_init(void)
 {
+  pinMode(PIN_POWER_GOOD, INPUT);
+  pinMode(PIN_STAT1, INPUT);
+  pinMode(PIN_STAT2, INPUT);
+
   g_batt_voltage = read_batteryVoltage();
 }
 
@@ -96,6 +117,7 @@ void batt_monitor_init(void)
 void supply_task(void)
 {
   measure_batteryVoltage();
+  check_battery_charger();
 }
 
 /**********************************************************************

@@ -414,6 +414,43 @@ void get_time(get_time_mode t2t_mode)
 }
 
 /**********************************************************************
+ * @brief Set the status of the led according to the supply diagnostics
+ */
+void set_led_from_diags(void)
+{
+  switch(batt_charger_diag)
+  {
+    case TEMP_OR_TIMER_FAULT: // 0 - Temperature fault or timer fault
+      set_rgb_led_blink_mode(RGB_RED, MAX_BRIGHTNESS, 200, 100);
+      break;
+      
+    case PRECONDITIONING:     // 2 - Preconditioning, constant current or constant voltage
+      set_rgb_led_blink_mode(RGB_YELLOW, MAX_BRIGHTNESS, 2000, 100);
+      break;
+      
+    case LOW_BATTERY_OUTPUT:  // 3 - Low battery output
+      set_rgb_led_blink_mode(RGB_RED, MAX_BRIGHTNESS, 2000, 100);
+      break;
+      
+    case CHARGE_COMPLETE:     // 4 - Charge complete
+      set_rgb_led_blink_mode(RGB_GREEN, MAX_BRIGHTNESS, 2000, 100);
+      break;
+      
+    case NO_BATTERY:          // 6 - Shutdown (VDD = VIN) or no battery present
+      set_rgb_led_on_mode(RGB_BLUE, MAX_BRIGHTNESS);
+      break;
+      
+    case NO_INPUT_POWER:      // 7 - Shutdown (VDD = VBAT) or no input power present
+      set_rgb_led_blink_mode(RGB_CYAN, MAX_BRIGHTNESS, 2000, 100);
+      break;
+      
+    default:
+      set_rgb_led_off_mode();
+      break;
+  }
+}
+
+/**********************************************************************
  * Global functions
  *********************************************************************/
 
@@ -477,4 +514,7 @@ void state_machine_task(void)
     default:
       break;
   }
+
+  /* General function for the RGB led control */
+  set_led_from_diags();
 }
