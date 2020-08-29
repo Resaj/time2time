@@ -29,14 +29,18 @@
  * Defines & enums
  *********************************************************************/
 
+#define BEST_TIME_INIT_VALUE  1000000
+
 enum program_state {
   INIT_STATE,
   MAIN_MENU,
+  SET_NUM_LAPS,
   GET_TIME
 };
 
 enum program_substate {
   INIT_SUBSTATE,
+  WAIT_FOR_LAPS_SELECTION,
   WAIT_FOR_START,
   SHOW_TIME_WITHOUT_DETECTION,
   WAIT_FOR_DETECTION,
@@ -58,7 +62,10 @@ enum get_time_mode {
  *********************************************************************/
 
 program_substate substate = INIT_SUBSTATE;
+
 unsigned int x_time_mode_target_laps = 3;
+unsigned long best_time_lap_ms = BEST_TIME_INIT_VALUE;
+unsigned long best_time_total_ms = BEST_TIME_INIT_VALUE;
 
 /**********************************************************************
  * Local functions
@@ -73,8 +80,8 @@ void show_main_menu(void)
     /* text                   , pos_X , pos_Y , font      , aligment */
     { "Select mode:"          , 0     , 0     , MENU_FONT , ALIGN_LEFT },
     { "A: Normal lap time"    , 0     , 15    , MENU_FONT , ALIGN_LEFT },
-    { "B: 3 laps time"        , 0     , 30    , MENU_FONT , ALIGN_LEFT },
-    { "C: Star/Stop (2x t2t)" , 0     , 45    , MENU_FONT , ALIGN_LEFT }
+    { "B: X laps time"        , 0     , 30    , MENU_FONT , ALIGN_LEFT },
+    { "C: Start/Stop (2x t2t)", 0     , 45    , MENU_FONT , ALIGN_LEFT }
   };
 
   display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -89,7 +96,6 @@ void normal_lap_time_mode(void)
   unsigned long t_now = 0;
   static unsigned long time_last_lap_ms = 0;
   static unsigned long time_last_detection = 0;
-  static unsigned long best_time_lap_ms = 1000000;
   static s_display_text text[] = {
     /* Text , pos_X , pos_Y , font                , aligment   */
     {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
@@ -195,19 +201,78 @@ void normal_lap_time_mode(void)
 }
 
 /**********************************************************************
+ * @brief Executes the selection of the number of laps for the 
+ * x_laps_time_mode
+ * 
+ * @returns true if the number of laps has been selected; false if not
+ */
+unsigned int x_laps_time_mode_laps_selection(void)
+{
+  static unsigned int target_laps_selection = x_time_mode_target_laps;
+
+  static s_display_text text[] = {
+    /* text                   , pos_X , pos_Y , font          , aligment   */
+    { "Select number of laps:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
+    { "A -> +1"               , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
+    { "B -> OK"               , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
+    { "C -> -1"               , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
+    { ""                      , 60    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* substate actions */
+      sprintf(text[4].text, "%u", target_laps_selection);
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      /* test substate changes */
+      substate = WAIT_FOR_LAPS_SELECTION;
+      break;
+
+    case WAIT_FOR_LAPS_SELECTION:
+      /* substate actions */
+
+      /* test substate changes */
+      if(get_button_state(BUTTON_A))
+      {
+        target_laps_selection++;
+        substate = INIT_SUBSTATE;
+      }
+      else if(get_button_state(BUTTON_B))
+      {
+        if(target_laps_selection != x_time_mode_target_laps)
+        {
+          best_time_total_ms = BEST_TIME_INIT_VALUE;
+          x_time_mode_target_laps = target_laps_selection;
+        }
+
+        return true;
+      }
+      else if(get_button_state(BUTTON_C))
+      {
+        target_laps_selection = target_laps_selection > 1 ? target_laps_selection - 1 : target_laps_selection;
+        substate = INIT_SUBSTATE;
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return false;
+}
+
+/**********************************************************************
  * @brief Executes the cyclic time measurement mode for the number of 
  * selected laps and shows the time of each lap and the total one
  */
 void x_laps_time_mode(void)
 {
-  //todo: configure menu to chose number of laps. Reset best_time_total_ms if the number of laps changes
-  
-  unsigned long t_now = 0;
   static unsigned long time_init = 0;
   static unsigned long time_last_detection = 0;
-  static unsigned long best_time_lap_ms = 1000000;
-  static unsigned long best_time_total_ms = 1000000;
   static unsigned int laps_to_go = 0;
+  unsigned long t_now = 0;
 
   static s_display_text text[] = {
     /* text , pos_X , pos_Y , font                , aligment   */
@@ -473,7 +538,6 @@ void state_machine_task(void)
 
       /* test state changes */
       state = MAIN_MENU;
-      
       break;
       
     case MAIN_MENU:
@@ -484,31 +548,40 @@ void state_machine_task(void)
       {
         t2t_mode = NORMAL_LAP_TIME_MODE;
         state = GET_TIME;
+        substate = INIT_SUBSTATE;
       }
       else if(get_button_state(BUTTON_B))
       {
         t2t_mode = X_LAPS_TIME_MODE;
-        state = GET_TIME;
+        state = SET_NUM_LAPS;
+        substate = INIT_SUBSTATE;
       }
       else if(get_button_state(BUTTON_C))
       {
         t2t_mode = START_STOP_MODE;
         state = GET_TIME;
+        substate = INIT_SUBSTATE;
       }
-
       break;
-      
+
+    case SET_NUM_LAPS:
+      /* state actions */
+
+      /* test state changes */
+      if(x_laps_time_mode_laps_selection())
+      {
+        state = GET_TIME;
+        substate = INIT_SUBSTATE;
+      }
+      break;
+
     case GET_TIME:
       /* state actions */
       get_time(t2t_mode);
 
       /* test state changes */
       if(get_button_state(BUTTON_C))
-      {
         state = INIT_STATE;
-        substate = INIT_SUBSTATE;
-      }
-      
       break;
       
     default:
