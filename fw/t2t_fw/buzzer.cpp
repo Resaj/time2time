@@ -45,7 +45,7 @@ enum e_buzzer_state {
 #define PWM_FREQ_HZ         2000u
 #define PWM_CHANNEL         0u
 #define PWM_RESOLUTION      8u
-#define PWM_DUTY_CYCLE_ON   (unsigned int)255/2 // Value between 0 and 255
+#define PWM_DUTY_CYCLE_ON   (uint16_t)255/2 // Value between 0 and 255
 #define PWM_DUTY_CYCLE_OFF  0u
 
 #define SHORT_BEEP_TIME           50u   // ms
@@ -60,8 +60,8 @@ enum e_buzzer_state {
  *********************************************************************/
 
 e_buzzer_state buzzer_state[BUZZER_STATE_BUFFER_SIZE];
-unsigned char buzzer_state_actual_index = 0;
-unsigned char buzzer_state_next_empty_index = 0;
+uint8_t buzzer_state_actual_index = 0;
+uint8_t buzzer_state_next_empty_index = 0;
 
 /**********************************************************************
  * Local functions
@@ -72,7 +72,7 @@ unsigned char buzzer_state_next_empty_index = 0;
  * 
  * @param state: 1 (on) or 0 (off)
  */
-void buzzer_pwm_set(unsigned char state)
+void buzzer_pwm_set(uint8_t state)
 {
   ledcWrite(PWM_CHANNEL, state? PWM_DUTY_CYCLE_ON : PWM_DUTY_CYCLE_OFF);
 }
@@ -97,11 +97,11 @@ void add_buzzer_state(e_buzzer_state state)
  * 
  * @returns done: 1 = done; 0 = in progress
  */
-unsigned char do_buzzer_task(void)
+uint8_t do_buzzer_task(void)
 {
-  static unsigned long t = 0;
-  unsigned long t_now = 0;
-  unsigned char done = 0;
+  static uint32_t t = 0;
+  uint32_t t_now = 0;
+  uint8_t done = 0;
   
   switch(buzzer_state[buzzer_state_actual_index])
   {

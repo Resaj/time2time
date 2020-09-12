@@ -38,18 +38,18 @@ typedef enum e_wave_form
 
 typedef struct
 {
-  unsigned int red;    // value between 0 and 256
-  unsigned int green;  // value between 0 and 256
-  unsigned int blue;   // value between 0 and 256
+  uint16_t red;    // value between 0 and 256
+  uint16_t green;  // value between 0 and 256
+  uint16_t blue;   // value between 0 and 256
 } s_rgb_color;
 
 typedef struct
 {
   e_wave_form wave_form;
   e_rgb_color rgb_color;
-  unsigned int period;          // If 0, no wave form is applied
-  unsigned int period_up;       // Time with the led on (for the square wave mode) or duration of the rising zone (for the triangle and sinusoidal wave modes)
-  unsigned int max_brightness;  // The maximum allowed duty cycle for the PWM of the led
+  uint16_t period;          // If 0, no wave form is applied
+  uint16_t period_up;       // Time with the led on (for the square wave mode) or duration of the rising zone (for the triangle and sinusoidal wave modes)
+  uint16_t max_brightness;  // The maximum allowed duty cycle for the PWM of the led
 } s_led_mode;
 
 /**********************************************************************
@@ -93,7 +93,7 @@ bool update_led_status = false; // used to update the status when storage status
  * @param brightness: the duty_cycle. It's an integer value between 0 
  *    and 256
  */
-void set_led(unsigned char pwm_channel_led, unsigned int brightness)
+void set_led(uint8_t pwm_channel_led, uint16_t brightness)
 {
   brightness = (brightness > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : brightness;
   
@@ -170,9 +170,9 @@ void get_basic_color(e_rgb_color selected_color, s_rgb_color *rgb_color)
  */
 void set_simple_brightness(s_rgb_color *rgb_color)
 {
-  rgb_color->red = (unsigned int)(led_mode.max_brightness * rgb_color->red / MAX_BRIGHTNESS);
-  rgb_color->green = (unsigned int)(led_mode.max_brightness * rgb_color->green / MAX_BRIGHTNESS);
-  rgb_color->blue = (unsigned int)(led_mode.max_brightness * rgb_color->blue / MAX_BRIGHTNESS);
+  rgb_color->red = (uint16_t)(led_mode.max_brightness * rgb_color->red / MAX_BRIGHTNESS);
+  rgb_color->green = (uint16_t)(led_mode.max_brightness * rgb_color->green / MAX_BRIGHTNESS);
+  rgb_color->blue = (uint16_t)(led_mode.max_brightness * rgb_color->blue / MAX_BRIGHTNESS);
 }
 
 /**********************************************************************
@@ -183,7 +183,7 @@ void set_simple_brightness(s_rgb_color *rgb_color)
  * of each color from the basic one.
  * @param t_period: time of period passed in milliseconds
  */
-void set_square_wave_brightness(s_rgb_color *rgb_color, unsigned int t_period)
+void set_square_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period)
 {
   if(t_period <= led_mode.period_up)
     set_simple_brightness(rgb_color);
@@ -202,18 +202,18 @@ void set_square_wave_brightness(s_rgb_color *rgb_color, unsigned int t_period)
  * of each color from the basic one.
  * @param t_period: time of period passed in milliseconds
  */
-void set_triangle_wave_brightness(s_rgb_color *rgb_color, unsigned int t_period)
+void set_triangle_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period)
 {
-  unsigned int brightness = 0;
+  uint16_t brightness = 0;
   
   if(t_period <= led_mode.period_up && led_mode.period_up != 0)
-    brightness = (unsigned int)(t_period * led_mode.max_brightness/led_mode.period_up);
+    brightness = (uint16_t)(t_period * led_mode.max_brightness/led_mode.period_up);
   else if(led_mode.period != led_mode.period_up)
-    brightness = (unsigned int)(led_mode.max_brightness - ((t_period - led_mode.period_up) * (led_mode.max_brightness)/(led_mode.period - led_mode.period_up)));
+    brightness = (uint16_t)(led_mode.max_brightness - ((t_period - led_mode.period_up) * (led_mode.max_brightness)/(led_mode.period - led_mode.period_up)));
   
-  rgb_color->red = (unsigned int)(brightness * rgb_color->red / MAX_BRIGHTNESS);
-  rgb_color->green = (unsigned int)(brightness * rgb_color->green / MAX_BRIGHTNESS);
-  rgb_color->blue = (unsigned int)(brightness * rgb_color->blue / MAX_BRIGHTNESS);
+  rgb_color->red = (uint16_t)(brightness * rgb_color->red / MAX_BRIGHTNESS);
+  rgb_color->green = (uint16_t)(brightness * rgb_color->green / MAX_BRIGHTNESS);
+  rgb_color->blue = (uint16_t)(brightness * rgb_color->blue / MAX_BRIGHTNESS);
 }
 
 /**********************************************************************
@@ -224,19 +224,18 @@ void set_triangle_wave_brightness(s_rgb_color *rgb_color, unsigned int t_period)
  * of each color from the basic one.
  * @param t_period: time of period passed in milliseconds
  */
-void set_sinusoidal_wave_brightness(s_rgb_color *rgb_color, unsigned int t_period)
+void set_sinusoidal_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period)
 {
-  //todo: modify this function
-  unsigned int brightness = 0;
+  uint16_t brightness = 0;
   
   if(t_period <= led_mode.period_up && led_mode.period_up != 0)
-    brightness = (unsigned int)(led_mode.max_brightness / 2 * (1.0 - cos(t_period * PI / led_mode.period_up)));
+    brightness = (uint16_t)(led_mode.max_brightness / 2 * (1.0 - cos(t_period * PI / led_mode.period_up)));
   else if(led_mode.period != led_mode.period_up)
-    brightness = (unsigned int)(led_mode.max_brightness / 2 * (1.0 + cos((t_period - led_mode.period_up) * PI / (led_mode.period - led_mode.period_up))));
+    brightness = (uint16_t)(led_mode.max_brightness / 2 * (1.0 + cos((t_period - led_mode.period_up) * PI / (led_mode.period - led_mode.period_up))));
   
-  rgb_color->red = (unsigned int)(brightness * rgb_color->red / MAX_BRIGHTNESS);
-  rgb_color->green = (unsigned int)(brightness * rgb_color->green / MAX_BRIGHTNESS);
-  rgb_color->blue = (unsigned int)(brightness * rgb_color->blue / MAX_BRIGHTNESS);
+  rgb_color->red = (uint16_t)(brightness * rgb_color->red / MAX_BRIGHTNESS);
+  rgb_color->green = (uint16_t)(brightness * rgb_color->green / MAX_BRIGHTNESS);
+  rgb_color->blue = (uint16_t)(brightness * rgb_color->blue / MAX_BRIGHTNESS);
 }
 
 /**********************************************************************
@@ -266,7 +265,7 @@ void rgb_led_init(void)
  * @param rgb_color: see enum e_rgb_color to know the available colors
  * @param brightness: integer value between 0 (off) and 255 (on)
  */
-void set_rgb_led_on_mode(e_rgb_color rgb_color, unsigned int brightness)
+void set_rgb_led_on_mode(e_rgb_color rgb_color, uint16_t brightness)
 {
   led_mode.wave_form = NO_WAVE;
   led_mode.rgb_color = rgb_color;
@@ -294,7 +293,7 @@ void set_rgb_led_off_mode(void)
  * @param period: period of the blink in milliseconds
  * @param period_up: time of the period with the led on, in milliseconds
  */
-void set_rgb_led_blink_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up)
+void set_rgb_led_blink_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up)
 {
   led_mode.wave_form = SQUARE_WAVE;
   led_mode.rgb_color = rgb_color;
@@ -313,7 +312,7 @@ void set_rgb_led_blink_mode(e_rgb_color rgb_color, unsigned int brightness, unsi
  * @param period: period of the blink in milliseconds
  * @param period_up: time of the period with the led on, in milliseconds
  */
-void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up)
+void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up)
 {
   led_mode.wave_form = TRIANGLE_WAVE;
   led_mode.rgb_color = rgb_color;
@@ -332,7 +331,7 @@ void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, unsigned int brightne
  * @param period: period of the blink in milliseconds
  * @param period_up: time of the period with the led on, in milliseconds
  */
-void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, unsigned int brightness, unsigned int period, unsigned int period_up)
+void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up)
 {
   led_mode.wave_form = SINUSOIDAL_WAVE;
   led_mode.rgb_color = rgb_color;
@@ -349,7 +348,7 @@ void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, unsigned int bright
  */
 void led_task(void)
 {
-  static unsigned long t = 0;
+  static uint32_t t = 0;
 
   if(update_led_status)
   {
@@ -364,15 +363,15 @@ void led_task(void)
         break;
         
       case SQUARE_WAVE:
-        set_square_wave_brightness(&rgb_color, (unsigned int)(t_now_ms - t));
+        set_square_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
         break;
         
       case TRIANGLE_WAVE:
-        set_triangle_wave_brightness(&rgb_color, (unsigned int)(t_now_ms - t));
+        set_triangle_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
         break;
         
       case SINUSOIDAL_WAVE:
-        set_sinusoidal_wave_brightness(&rgb_color, (unsigned int)(t_now_ms - t));
+        set_sinusoidal_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
         break;
         
       default:

@@ -15,6 +15,12 @@
 #define BUTTON_H
 
 /**********************************************************************
+ * Includes
+ *********************************************************************/
+
+#include <stdint.h>
+
+/**********************************************************************
  * Defines & enums
  *********************************************************************/
 
@@ -30,6 +36,6 @@ enum button_list {
 
 void buttons_init(void);
 void buttons_task(void);
-unsigned char get_button_state(button_list button_number);
+uint8_t get_button_state(button_list button_number);
 
 #endif /* BUTTON_H */

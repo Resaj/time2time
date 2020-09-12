@@ -71,11 +71,11 @@ void display_clear(void)
  * aligment
  * @param num_lines: number of lines to write on the screen
  */
-void display_set_data(s_display_text *display_data, char num_lines)
+void display_set_data(s_display_text *display_data, uint8_t num_lines)
 {
   display_clear(); // Clean the display buffer before the next printing
 
-  for(char i=0; i<num_lines; i++)
+  for(uint8_t i=0; i<num_lines; i++)
   {
     switch(display_data[i].font) /* Select font of the text */
     {

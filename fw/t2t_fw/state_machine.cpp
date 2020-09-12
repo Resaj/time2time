@@ -63,9 +63,9 @@ enum get_time_mode {
 
 program_substate substate = INIT_SUBSTATE;
 
-unsigned int x_time_mode_target_laps = 3;
-unsigned long best_time_lap_ms = BEST_TIME_INIT_VALUE;
-unsigned long best_time_total_ms = BEST_TIME_INIT_VALUE;
+uint16_t x_time_mode_target_laps = 3;
+uint32_t best_time_lap_ms = BEST_TIME_INIT_VALUE;
+uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
 
 /**********************************************************************
  * Local functions
@@ -93,9 +93,9 @@ void show_main_menu(void)
  */
 void normal_lap_time_mode(void)
 {
-  unsigned long t_now = 0;
-  static unsigned long time_last_lap_ms = 0;
-  static unsigned long time_last_detection = 0;
+  uint32_t t_now = 0;
+  static uint32_t time_last_lap_ms = 0;
+  static uint32_t time_last_detection = 0;
   static s_display_text text[] = {
     /* Text , pos_X , pos_Y , font                , aligment   */
     {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
@@ -206,9 +206,9 @@ void normal_lap_time_mode(void)
  * 
  * @returns true if the number of laps has been selected; false if not
  */
-unsigned int x_laps_time_mode_laps_selection(void)
+uint16_t x_laps_time_mode_laps_selection(void)
 {
-  static unsigned int target_laps_selection = x_time_mode_target_laps;
+  static uint16_t target_laps_selection = x_time_mode_target_laps;
 
   static s_display_text text[] = {
     /* text                   , pos_X , pos_Y , font          , aligment   */
@@ -269,10 +269,10 @@ unsigned int x_laps_time_mode_laps_selection(void)
  */
 void x_laps_time_mode(void)
 {
-  static unsigned long time_init = 0;
-  static unsigned long time_last_detection = 0;
-  static unsigned int laps_to_go = 0;
-  unsigned long t_now = 0;
+  static uint32_t time_init = 0;
+  static uint32_t time_last_detection = 0;
+  static uint16_t laps_to_go = 0;
+  uint32_t t_now = 0;
 
   static s_display_text text[] = {
     /* text , pos_X , pos_Y , font                , aligment   */

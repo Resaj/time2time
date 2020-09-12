@@ -35,9 +35,9 @@
  *********************************************************************/
  
 typedef struct {
-  const unsigned int period_ms;   // Timer period (ms)
-  unsigned long t_last_execution; // Instant of last execution (ms)
-  void (*execute_tasks)(void);    // Pointer to a function which contains the tasks to execute
+  const uint16_t period_ms;     // Timer period (ms)
+  uint32_t t_last_execution;    // Instant of last execution (ms)
+  void (*execute_tasks)(void);  // Pointer to a function which contains the tasks to execute
 } s_timer;
 
 /**********************************************************************
@@ -46,13 +46,13 @@ typedef struct {
 
 hw_timer_t *timer = NULL;
 portMUX_TYPE scheduler_critical_zone = portMUX_INITIALIZER_UNLOCKED;  // Needed for the interruption
-unsigned char interruptCounter;
+uint8_t interruptCounter;
 
 /**********************************************************************
  * Global variables
  *********************************************************************/
 
-unsigned long t_now_ms = 0;
+uint32_t t_now_ms = 0;
 
 /**********************************************************************
  * Local functions
@@ -91,9 +91,7 @@ void tasks_10ms(void)
   buzzer_task();
   state_machine_task();
   led_task();
-    
-  //todo: manage UART communication
-  //todo: manage Wifi communication
+  //todo: manage ESP-Now communication
 }
 
 /**********************************************************************
@@ -144,7 +142,7 @@ void scheduler_task(void)
     {  50        , 0                , &tasks_50ms   },
     {  500       , 0                , &tasks_500ms  }
   };
-  static unsigned char num_timers = sizeof(timer_scheduler) / sizeof(s_timer);
+  static uint8_t num_timers = sizeof(timer_scheduler) / sizeof(s_timer);
 
   if (interruptCounter > 0)
   {
@@ -152,7 +150,7 @@ void scheduler_task(void)
     interruptCounter--;
     portEXIT_CRITICAL(&scheduler_critical_zone);
  
-    for(int i = 0; i < num_timers; i++)
+    for(int8_t i = 0; i < num_timers; i++)
     {
       if(t_now_ms - timer_scheduler[i].t_last_execution >= timer_scheduler[i].period_ms)
       {

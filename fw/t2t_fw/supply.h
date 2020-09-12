@@ -14,8 +14,6 @@
 #ifndef SUPPLY_H
 #define SUPPLY_H
 
-//todo: implement battery charge manager interface (POWER_GOOD, STAT1, STAT2)
-
 /**********************************************************************
  * Includes
  *********************************************************************/
@@ -47,7 +45,7 @@ typedef enum
  * Global variables
  *********************************************************************/
 
-extern unsigned int g_batt_voltage; // millivolts
+extern uint16_t g_batt_voltage; // millivolts
 extern e_batt_charger_diag batt_charger_diag;
 
 /**********************************************************************

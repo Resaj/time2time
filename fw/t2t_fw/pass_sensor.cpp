@@ -38,7 +38,7 @@ portMUX_TYPE sensor_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for 
  *********************************************************************/
 
 bool sensor_interrupt_flag = false;
-unsigned long time_detection = 0;
+uint32_t time_detection = 0;
 
 /**********************************************************************
  * Global functions

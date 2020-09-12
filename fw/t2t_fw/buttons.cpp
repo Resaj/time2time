@@ -34,13 +34,13 @@
  *********************************************************************/
 
 typedef struct {
-  unsigned char pin;          // uC pin connected to the button
-  unsigned char raw_state;    // Button state (read directly from the pin)
-  unsigned char level_state;  // Button level signal state filtered: 1 = HIGH; 0 = LOW
-  unsigned char edge_state;   // Button edge signal state filtered: 1 = rising edge; 0 = rest of cases
-  char logic;                 // Button logic
-  unsigned long time_flag;    // Filtering time flag
-  bool detection_flag;        // Continuous detection avoidance flag
+  uint8_t pin;          // uC pin connected to the button
+  uint8_t raw_state;    // Button state (read directly from the pin)
+  uint8_t level_state;  // Button level signal state filtered: 1 = HIGH; 0 = LOW
+  uint8_t edge_state;   // Button edge signal state filtered: 1 = rising edge; 0 = rest of cases
+  uint8_t logic;        // Button logic
+  uint32_t time_flag;   // Filtering time flag
+  bool detection_flag;  // Continuous detection avoidance flag
 } s_button;
 
 /**********************************************************************
@@ -107,7 +107,7 @@ void buttons_init(void)
  */
 void buttons_task(void)
 {
-  for(int i=0; i<sizeof(buttons)/sizeof(s_button*); i++)
+  for(uint8_t i=0; i<sizeof(buttons)/sizeof(s_button*); i++)
     read_button(buttons[i]);
 }
 
@@ -117,7 +117,7 @@ void buttons_task(void)
  * @param button_number: the number of the button to be read
  * @returns battery voltage (volts * 1000)
  */
-unsigned char get_button_state(button_list button_number)
+uint8_t get_button_state(button_list button_number)
 {
   return buttons[button_number]->edge_state;
 }

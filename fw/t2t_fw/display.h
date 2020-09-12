@@ -15,6 +15,12 @@
 #define DISPLAY_H
 
 /**********************************************************************
+ * Includes
+ *********************************************************************/
+
+#include <stdint.h>
+
+/**********************************************************************
  * Enums
  *********************************************************************/
 
@@ -36,9 +42,9 @@ typedef enum {
 
 typedef struct {
   char text[25];            // Text to show
-  unsigned char pos_X;      // Text position X
-  unsigned char pos_Y;      // Text position Y
-  text_font     font;       // Font and letter dimensions
+  uint8_t pos_X;            // Text position X
+  uint8_t pos_Y;            // Text position Y
+  text_font font;           // Font and letter dimensions
   text_aligment alignment;  // Text alignment
 } s_display_text;
 
@@ -48,7 +54,7 @@ typedef struct {
 
 void display_init(void);
 void display_clear(void);
-void display_set_data(s_display_text *display_data, char num_lines);
+void display_set_data(s_display_text *display_data, uint8_t num_lines);
 void display_task(void);
 
 #endif /* DISPLAY_H */

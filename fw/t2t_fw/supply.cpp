@@ -40,7 +40,7 @@
  * Global variables
  *********************************************************************/
 
-unsigned int g_batt_voltage = 0; // millivolts
+uint16_t g_batt_voltage = 0; // millivolts
 e_batt_charger_diag batt_charger_diag = NO_INPUT_POWER;
 
 /**********************************************************************
@@ -53,12 +53,12 @@ e_batt_charger_diag batt_charger_diag = NO_INPUT_POWER;
  * 
  * @returns battery voltage (millivolts)
  */
-unsigned int read_batteryVoltage(void)
+uint16_t read_batteryVoltage(void)
 {
-  unsigned int adc_value, pin_voltage, batt_voltage;
+  uint16_t adc_value, pin_voltage, batt_voltage;
 
   adc_value = analogRead(PIN_BATT_MONITOR);
-  pin_voltage = (unsigned int)(290 + (adc_value*18.0/22) - pow((adc_value/2500.0),4)*1000.0/11);  // Convert ADC value to millivolts
+  pin_voltage = (uint16_t)(290 + (adc_value*18.0/22) - pow((adc_value/2500.0),4)*1000.0/11);  // Convert ADC value to millivolts
   batt_voltage = pin_voltage * (BATT_MONITOR_R1 + BATT_MONITOR_R2)/BATT_MONITOR_R2; // Convert pin voltage to battery voltage
 
   return batt_voltage;
@@ -70,11 +70,11 @@ unsigned int read_batteryVoltage(void)
  */
 void measure_batteryVoltage(void)
 {
-  unsigned int actual_batt_voltage;
+  uint16_t actual_batt_voltage;
 
   actual_batt_voltage = read_batteryVoltage();
 
-  g_batt_voltage = (unsigned int)((actual_batt_voltage)*(1-ALPHA_LP_FILTER) + g_batt_voltage*ALPHA_LP_FILTER); // Apply low-pass filter
+  g_batt_voltage = (uint16_t)((actual_batt_voltage)*(1-ALPHA_LP_FILTER) + g_batt_voltage*ALPHA_LP_FILTER); // Apply low-pass filter
 }
 
 /**********************************************************************
@@ -82,9 +82,9 @@ void measure_batteryVoltage(void)
  */
 void check_battery_charger(void)
 {
-  unsigned char power_good_status = 0;
-  unsigned char stat1_status = 0;
-  unsigned char stat2_status = 0;
+  uint8_t power_good_status = 0;
+  uint8_t stat1_status = 0;
+  uint8_t stat2_status = 0;
 
   power_good_status = digitalRead(PIN_POWER_GOOD);
   stat1_status = digitalRead(PIN_STAT1);
