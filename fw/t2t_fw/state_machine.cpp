@@ -19,6 +19,7 @@
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
+#include "espnow_comm.h"
 #include "led_rgb.h"
 #include "pass_sensor.h"
 #include "scheduler.h"
@@ -457,23 +458,42 @@ void start_stop_mode(void)
   //todo: program start/stop operating mode
 
   static s_display_text text[] = {
-    /* text                 , pos_X , pos_Y , font      , aligment */
-    {  "Mode not ready yet" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    {  "Press C to exit"    , 0     , 15    , MENU_FONT , ALIGN_LEFT }
+    /* text                  , pos_X , pos_Y , font      , aligment */
+    {  "Press A to send msg" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
+    {  "Press C to exit"     , 0     , 15    , MENU_FONT , ALIGN_LEFT },
+    {  ""                    , 20    , 30    , MENU_FONT , ALIGN_LEFT },
+    {  ""                    , 20    , 45    , MENU_FONT , ALIGN_LEFT },
   };
+
+  static s_espnow_msg msg = { moduleNumber, 0 };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
+      sprintf(text[2].text, "%u", espnow_error);
+      sprintf(text[3].text, "%u", espnow_add_peer_error);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
-      
+
       /* test substate changes */
       substate = FINISHED;
       break;
       
     case FINISHED:
       /* substate actions */
+/*      if(get_button_state(BUTTON_A))
+      {
+        msg.last_time_sensor_detection = t_now_ms;
+        sendESPNowData(msg);
+      }
+
+      if(incoming_msg.last_time_sensor_detection != 0)
+      {
+        sprintf(text[2].text, "%u", incoming_msg.nodeAddr);
+        sprintf(text[3].text, "%.3f", incoming_msg.last_time_sensor_detection/1000.0);
+        display_set_data(text, sizeof(text)/sizeof(s_display_text));
+        incoming_msg.last_time_sensor_detection = 0;
+      }*/
 
       /* test substate changes */
       break;

@@ -18,6 +18,7 @@
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
+#include "espnow_comm.h"
 #include "led_rgb.h"
 #include "pass_sensor.h"
 #include "scheduler.h"
@@ -126,6 +127,7 @@ void init_setup_task(void)
   buzzer_init();
   display_init();
   rgb_led_init();
+  espnow_comm_init();
 
   scheduler_init();
 }
