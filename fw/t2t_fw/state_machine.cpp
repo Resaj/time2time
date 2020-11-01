@@ -54,8 +54,16 @@ enum program_substate {
 enum get_time_mode {
   NORMAL_LAP_TIME_MODE,
   X_LAPS_TIME_MODE,
-  START_STOP_MODE
+  START_STOP_MODE,
+  TOAST_MODE
 };
+
+typedef struct {
+  get_time_mode     time_mode;
+  char              text_in_menu[22];
+  program_state     next_menu_state;
+  program_substate  first_subtate;
+} s_mode_data;
 
 /**********************************************************************
  * Local variables
@@ -67,22 +75,43 @@ uint16_t x_time_mode_target_laps = 3;
 uint32_t best_time_lap_ms = BEST_TIME_INIT_VALUE;
 uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
 
+s_mode_data mode_data[] = {
+  /* time_mode           , text_in_menu          , next_menu_state , first_subtate */
+  { NORMAL_LAP_TIME_MODE , "Normal lap time"     , GET_TIME        , INIT_SUBSTATE },
+  { X_LAPS_TIME_MODE     , "X laps time"         , SET_NUM_LAPS    , INIT_SUBSTATE },
+  { START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
+  { TOAST_MODE           , "Get toast time"      , GET_TIME        , INIT_SUBSTATE }
+};
+
 /**********************************************************************
  * Local functions
  *********************************************************************/
 
 /**********************************************************************
  * @brief Shows the main menu with the different t2t options
+ * 
+ * @param group_num: number of menu options group to display on
+ *    the screen
  */
-void show_main_menu(void)
+void show_main_menu(uint8_t group_num)
 {
   s_display_text text[] = {
-    /* text                   , pos_X , pos_Y , font      , aligment */
-    { "Select mode:"          , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    { "A: Normal lap time"    , 0     , 15    , MENU_FONT , ALIGN_LEFT },
-    { "B: X laps time"        , 0     , 30    , MENU_FONT , ALIGN_LEFT },
-    { "C: Start/Stop (2x t2t)", 0     , 45    , MENU_FONT , ALIGN_LEFT }
+    /* text          , pos_X , pos_Y , font      , aligment */
+    { "Select mode:" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
+    { ""             , 0     , 15    , MENU_FONT , ALIGN_LEFT },
+    { ""             , 0     , 30    , MENU_FONT , ALIGN_LEFT },
+    { "C: ..."       , 0     , 45    , MENU_FONT , ALIGN_LEFT }
   };
+
+  sprintf(text[1].text, "A: %s", mode_data[group_num*2].text_in_menu);
+  if((group_num*2 + 1) < sizeof(mode_data)/sizeof(s_mode_data))
+    sprintf(text[2].text, "B: %s", mode_data[group_num*2 + 1].text_in_menu);
+  else
+    sprintf(text[2].text, "");
+  if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+    sprintf(text[3].text, "C: ...");
+  else
+    sprintf(text[3].text, "");
 
   display_set_data(text, sizeof(text)/sizeof(s_display_text));
 }
@@ -421,11 +450,46 @@ void x_laps_time_mode(void)
 
 /**********************************************************************
  * @brief Executes the start/stop time measurement mode and shows the 
- * time of the complete circuit
+ * total time spent on the circuit
  */
 void start_stop_mode(void)
 {
   //todo: program start/stop operating mode
+
+  static s_display_text text[] = {
+    /* text                 , pos_X , pos_Y , font      , aligment */
+    {  "Mode not ready yet" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
+    {  "Press C to exit"    , 0     , 15    , MENU_FONT , ALIGN_LEFT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* substate actions */
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+      
+      /* test substate changes */
+      substate = FINISHED;
+      break;
+      
+    case FINISHED:
+      /* substate actions */
+
+      /* test substate changes */
+      break;
+      
+    default:
+      break;
+  }
+}
+
+/**********************************************************************
+ * @brief Executes the toast time measurement mode and shows the total
+ * time spent on toasting the slice
+ */
+void toast_mode(void)
+{
+  //todo: program toast operating mode
 
   static s_display_text text[] = {
     /* text                 , pos_X , pos_Y , font      , aligment */
@@ -474,6 +538,13 @@ void get_time(get_time_mode t2t_mode)
       
     case START_STOP_MODE:
       start_stop_mode();
+      break;
+
+    case TOAST_MODE:
+      toast_mode();
+      break;
+
+    default:
       break;
   }
 }
@@ -528,13 +599,14 @@ void state_machine_task(void)
 {
   static program_state state = INIT_STATE;
   static get_time_mode t2t_mode = NORMAL_LAP_TIME_MODE;
+  static uint8_t menu_screen_num = 0;
 
   /* Main state machine control */
   switch(state)
   {
     case INIT_STATE:
       /* state actions */
-      show_main_menu();
+      show_main_menu(menu_screen_num);
 
       /* test state changes */
       state = MAIN_MENU;
@@ -546,21 +618,28 @@ void state_machine_task(void)
       /* test state changes */
       if(get_button_state(BUTTON_A))
       {
-        t2t_mode = NORMAL_LAP_TIME_MODE;
-        state = GET_TIME;
-        substate = INIT_SUBSTATE;
+        t2t_mode = mode_data[menu_screen_num*2].time_mode;
+        state = mode_data[menu_screen_num*2].next_menu_state;
+        substate = mode_data[menu_screen_num*2].first_subtate;
       }
       else if(get_button_state(BUTTON_B))
       {
-        t2t_mode = X_LAPS_TIME_MODE;
-        state = SET_NUM_LAPS;
-        substate = INIT_SUBSTATE;
+        if((menu_screen_num*2 + 1) < sizeof(mode_data)/sizeof(s_mode_data))
+        {
+          t2t_mode = mode_data[menu_screen_num*2 + 1].time_mode;
+          state = mode_data[menu_screen_num*2 + 1].next_menu_state;
+          substate = mode_data[menu_screen_num*2 + 1].first_subtate;
+        }
       }
       else if(get_button_state(BUTTON_C))
       {
-        t2t_mode = START_STOP_MODE;
-        state = GET_TIME;
-        substate = INIT_SUBSTATE;
+        if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+        {
+          menu_screen_num++;
+          if(menu_screen_num >= (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)))
+            menu_screen_num = 0;
+          show_main_menu(menu_screen_num);
+        }
       }
       break;
 

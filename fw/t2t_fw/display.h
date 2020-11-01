@@ -41,10 +41,10 @@ typedef enum {
  *********************************************************************/
 
 typedef struct {
-  char text[25];            // Text to show
-  uint8_t pos_X;            // Text position X
-  uint8_t pos_Y;            // Text position Y
-  text_font font;           // Font and letter dimensions
+  char          text[25];   // Text to show
+  uint8_t       pos_X;      // Text position X
+  uint8_t       pos_Y;      // Text position Y
+  text_font     font;       // Font and letter dimensions
   text_aligment alignment;  // Text alignment
 } s_display_text;
 
