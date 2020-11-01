@@ -25,7 +25,7 @@
  * Configuration parameters
  *********************************************************************/
 
-#define SENSOR_ACTIVE_EDGE FALLING // RISING/FALLING
+#define DEFAULT_SENSOR_ACTIVE_EDGE FALLING // LOW/CHANGE/RISING/FALLING
 
 /**********************************************************************
  * Local variables
@@ -75,12 +75,48 @@ void release_sensor_detection(void)
 
 /**********************************************************************
  * @brief Configures the pass sensor as input, actives the sensor 
- * supply and initializes the external interruption with falling edge
+ * supply and initializes the external interruption with the default
+ * active edge, specified with DEFAULT_SENSOR_ACTIVE_EDGE
  */
 void pass_sensor_init(void)
 {
   power_12v_init();
   pinMode(PIN_SENSOR, INPUT);
   delay(100); // Delay needed to avoid false interruption detections
-  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensor_isr, SENSOR_ACTIVE_EDGE);
+  set_default_sensor_active_edge();
+}
+
+/**********************************************************************
+ * @brief Initializes the external interruption with the default active
+ * edge, specified with DEFAULT_SENSOR_ACTIVE_EDGE
+ */
+void set_default_sensor_active_edge(void)
+{
+  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensor_isr, DEFAULT_SENSOR_ACTIVE_EDGE);
+}
+
+/**********************************************************************
+ * @brief Initializes the external interruption with the inverted
+ * active edge with respect to the default one, specified with
+ * DEFAULT_SENSOR_ACTIVE_EDGE
+ */
+void invert_sensor_active_edge(void)
+{
+  uint8_t sensor_active_edge;
+  
+  switch(DEFAULT_SENSOR_ACTIVE_EDGE)
+  {
+    case RISING:
+      sensor_active_edge = FALLING;
+      break;
+
+    case FALLING:
+      sensor_active_edge = RISING;
+      break;
+
+    default:
+      break;
+  }
+
+  attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensor_isr, sensor_active_edge);
 }
