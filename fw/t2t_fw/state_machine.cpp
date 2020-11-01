@@ -79,7 +79,7 @@ s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , next_menu_state , first_subtate */
   { NORMAL_LAP_TIME_MODE , "Normal lap time"     , GET_TIME        , INIT_SUBSTATE },
   { X_LAPS_TIME_MODE     , "X laps time"         , SET_NUM_LAPS    , INIT_SUBSTATE },
-  { START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
+  //{ START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
   { TOAST_MODE           , "Get toast time"      , GET_TIME        , INIT_SUBSTATE }
 };
 
@@ -489,28 +489,104 @@ void start_stop_mode(void)
  */
 void toast_mode(void)
 {
-  //todo: program toast operating mode
+  static uint32_t time_init = 0;
+  static uint32_t best_toast_time_ms = BEST_TIME_INIT_VALUE;
+  uint32_t t_now = 0;
 
   static s_display_text text[] = {
-    /* text                 , pos_X , pos_Y , font      , aligment */
-    {  "Mode not ready yet" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    {  "Press C to exit"    , 0     , 15    , MENU_FONT , ALIGN_LEFT }
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
+      invert_sensor_active_edge();
+
+      sprintf(text[0].text, "0.000");
+      sprintf(text[1].text, "Ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
+      release_sensor_detection();
+      
       /* test substate changes */
-      substate = FINISHED;
+      substate = WAIT_FOR_START;
       break;
       
+    case WAIT_FOR_START:
+      /* substate actions */
+
+      /* test substate changes */
+      if(sensor_interrupt_flag)
+      {
+        time_init = time_detection;
+        set_default_sensor_active_edge();
+        set_buzzer_mode(SIMPLE_BEEP);
+        substate = SHOW_TIME_WITHOUT_DETECTION;
+      }
+      break;
+      
+    case SHOW_TIME_WITHOUT_DETECTION:
+      /* substate actions */
+      t_now = t_now_ms;
+      sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
+      sprintf(text[1].text, "Press B to abort");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      /* test substate changes */
+      if(t_now - time_detection > 1000)
+      {
+        release_sensor_detection();
+        substate = WAIT_FOR_DETECTION;
+      }
+
+      if(get_button_state(BUTTON_B))
+        substate = INIT_SUBSTATE;
+
+      break;
+      
+    case WAIT_FOR_DETECTION:
+      /* substate actions */
+      t_now = t_now_ms;
+      sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
+      sprintf(text[1].text, "Press B to abort");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      /* test substate changes */
+      if(sensor_interrupt_flag)
+        substate = SHOW_FINAL_TIME;
+
+      if(get_button_state(BUTTON_B))
+        substate = INIT_SUBSTATE;
+
+      break;
+      
+    case SHOW_FINAL_TIME:
+      /* substate actions */
+      sprintf(text[0].text, "%.3f", (time_detection - time_init)/1000.0);
+      sprintf(text[1].text, "Press B to restart");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      if(time_detection - time_init < best_toast_time_ms)
+      {
+        best_toast_time_ms = time_detection - time_init;
+        set_buzzer_mode(TRIPLE_BEEP);
+      }
+      
+      set_buzzer_mode(LARGE_BEEP);
+
+     /* test substate changes */
+      substate = FINISHED;
+      break;
+
     case FINISHED:
       /* substate actions */
 
       /* test substate changes */
+      if(get_button_state(BUTTON_B))
+        substate = INIT_SUBSTATE;
       break;
       
     default:
@@ -660,7 +736,10 @@ void state_machine_task(void)
 
       /* test state changes */
       if(get_button_state(BUTTON_C))
+      {
+        set_default_sensor_active_edge();
         state = INIT_STATE;
+      }
       break;
       
     default:
