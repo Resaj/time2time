@@ -59,7 +59,9 @@ void setup() {
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK)
     return;
+
   esp_now_register_send_cb(OnDataSent);
+  esp_now_register_recv_cb(OnDataRecv);
 
   esp_now_peer_info_t peerInfo;
   memcpy(peerInfo.peer_addr, MACaddr, 6);
@@ -67,8 +69,6 @@ void setup() {
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK)
     return;
-
-  esp_now_register_recv_cb(OnDataRecv);
 }
  
 void loop() {
