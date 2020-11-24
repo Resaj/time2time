@@ -21,20 +21,6 @@
 #include <stdint.h>
 
 /**********************************************************************
- * Structs
- *********************************************************************/
-
-typedef struct {
-  uint8_t nodeAddr;
-  uint32_t last_time_sensor_detection;  // ms
-} s_espnow_msg;
-
-/**********************************************************************
- * Defines & enums
- *********************************************************************/
-
-
-/**********************************************************************
  * Global configuration parameters
  *********************************************************************/
 
@@ -43,16 +29,15 @@ typedef struct {
  * Global variables
  *********************************************************************/
 
-extern uint8_t moduleNumber;
-extern s_espnow_msg incoming_msg;
-extern uint8_t espnow_error;
-extern uint8_t espnow_add_peer_error;
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
-extern void espnow_comm_init(void);
-extern void sendESPNowData(s_espnow_msg msg);
+void espnow_comm_init(void);
+void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack);
+void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed);
+void sendESPNowLowBattMsg(uint8_t *MACAddr);
+void sendESPNowDetectionMsg(uint8_t *MACAddr);
 
 #endif /* ESPNOW_COMM_H */

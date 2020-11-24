@@ -24,59 +24,66 @@
  * Structs
  *********************************************************************/
 
-typedef struct {
-  uint8_t nodeAddr;     // Node address (0-7). Defined with the jumpers in the PCB
-  uint8_t MACAddr[6];   // MAC address of the ESP node
-  bool    linked;       // Flag which indicates the link status
-  uint8_t circuit_pos;  // Position of the node in the circuit. It has to be calculated automaticaly at the begining of the race
+typedef struct s_t2t_node {
+  uint8_t    *MACAddr;  // MAC address of the ESP node
+  s_t2t_node *prevNode; // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  s_t2t_node *nextNode; // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
 } s_t2t_node;
 
+typedef struct {
+  uint8_t type  : 3;
+  uint8_t info  : 5;
+} s_espnow_default_msg;
+
+typedef struct {
+  uint8_t type      : 3;
+  uint8_t nodeAddr  : 3;  // Node address (0-7). Defined by the jumpers in the PCB
+  uint8_t ask4Ack   : 1;  // Ask for the nodeAddr of the other node. 1 = yes; 0 = no
+  uint8_t reserved  : 1;
+} s_espnow_link_msg;
+
+typedef struct {
+  uint8_t type          : 3;
+  uint8_t func_mode     : 3;
+  uint8_t isRxNodeUsed  : 1;
+  uint8_t reserved      : 1;
+} s_espnow_mode_msg;
+
 /**********************************************************************
- * Local configuration parameters
+ * Defines & enums
  *********************************************************************/
 
-/* Up to 8 nodes linked, positioned in the next matrix according to the JP_ADD jumpers
- * Define the MAC address of each module. You can read it following this tutorial:
- * https://randomnerdtutorials.com/get-change-esp32-esp8266-mac-address-arduino/
+typedef enum {
+  LINK_MSG,
+  MODE_MSG,
+  LOW_BATT_MSG,
+  DETECTION_MSG
+} msg_type;
+
+/**********************************************************************
+ * Local variables
+ *********************************************************************/
+
+/* Define here the MAC addresses of all your #time2time nodes. Up to 8
+ * nodes linked. You can read the MAC address running the test program.
  */
-s_t2t_node t2t_node[] = {
-  /* nodeAddr, MACAddr                             , linked, circuit_pos */
-  {  255     , {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C}, false , 255         },
-  {  255     , {0x24, 0x0A, 0xC4, 0x2A, 0x4C, 0x48}, false , 255         },
-  {  255     , {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0xCC}, false , 255         },
-  {  255     , {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false , 255         },
-  {  255     , {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false , 255         },
-  {  255     , {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false , 255         },
-  {  255     , {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false , 255         },
-  {  255     , {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false , 255         }
+uint8_t MyMACAddrList[][6] = {
+  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C},
+  {0x24, 0x0A, 0xC4, 0x2A, 0x4C, 0x48},
+  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0xCC}
 };
 
-uint8_t broadcastMacAddr[] = {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C};
-
-/**********************************************************************
- * Defines
- *********************************************************************/
-
-
-/**********************************************************************
- * Global variables
- *********************************************************************/
-
-uint8_t moduleNumber = 0;
-extern s_espnow_msg incoming_msg = { 0, 0 };
-uint8_t espnow_error = 0;
-uint8_t espnow_add_peer_error = 0;
+s_t2t_node t2t_node[8];      // Matrix to store the information of the nodes
+s_t2t_node *thisNode = NULL; // Pointer to the node position at t2t_node
+s_t2t_node *mainNode = NULL; // Pointer to the main node position at t2t_node.
+                             // Determines the node that manages the total times and the functionament mode
+                             // It it set when selecting the functionament mode.
+uint8_t thisNodeAddr;        // Node address (0-7). Defined by the jumpers in the PCB
+s_espnow_default_msg s_receivedMsg;
 
 /**********************************************************************
  * Local functions
  *********************************************************************/
-
-void config_node(void)
-{
-  pinMode(PIN_JP_ADD1, INPUT);
-  pinMode(PIN_JP_ADD2, INPUT);
-  pinMode(PIN_JP_ADD3, INPUT);
-}
 
 uint8_t read_moduleNumber(void)
 {
@@ -86,18 +93,56 @@ uint8_t read_moduleNumber(void)
   return (add_bit3<<2) + (add_bit2<<1) + (add_bit1);
 }
 
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t state) {
-//  if (state == 0){
-//    success = "Delivery Success :)";
-//  }
-//  else{
-//    success = "Delivery Fail :(";
-//  }
+uint8_t config_node(void)
+{
+  bool isNodeListed = false;
+  uint8_t MACAddr[6];
+  
+  pinMode(PIN_JP_ADD1, INPUT);
+  pinMode(PIN_JP_ADD2, INPUT);
+  pinMode(PIN_JP_ADD3, INPUT);
+
+  thisNodeAddr = read_moduleNumber();
+  
+  WiFi.macAddress(MACAddr);
+  for(uint8_t num=0; num<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); num++)
+  {
+    bool isEqual = true;
+    
+    for(uint8_t pos=0; pos<(sizeof(MACAddr)/sizeof(uint8_t)); pos++)
+    {
+      if(MACAddr[pos] != MyMACAddrList[num][pos])
+      {
+        isEqual = false;
+        break;
+      }
+    }
+    
+    if(isEqual)
+    {
+      t2t_node[thisNodeAddr].MACAddr = MyMACAddrList[num];
+      isNodeListed = true;
+      break;
+    }
+  }
+  if(!isNodeListed)
+    return false;
+
+  t2t_node[thisNodeAddr].prevNode = NULL;
+  t2t_node[thisNodeAddr].nextNode = NULL;
+  
+  thisNode = &t2t_node[thisNodeAddr];
+  mainNode = &t2t_node[thisNodeAddr];
+
+  return true;
 }
 
-void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int32_t len)
+void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state) {
+}
+
+void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len)
 {
-  memcpy(&incoming_msg, incomingData, sizeof(incoming_msg));
+  memcpy(&s_receivedMsg, receivedData, sizeof(s_receivedMsg));
 }
 
 /**********************************************************************
@@ -106,62 +151,72 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int32_t len)
 
 void espnow_comm_init(void)
 {
-  //uint8_t espnow_error = 0;
-  
-  config_node();
-  moduleNumber = read_moduleNumber();
+  if(!config_node())
+    return; // Node not found in the list. Avoid Wifi initialization
 
   WiFi.mode(WIFI_STA);
 
-  if (esp_now_init() != ESP_OK)
-    espnow_error = 1;
+  if (esp_now_init() != ESP_OK){
+    return; // ESP_now not initialyzed. Avoid linking the nodes
+  }
 
   esp_now_register_send_cb(OnDataSent);
-  
-  esp_now_peer_info_t peerInfo;
-  memcpy(peerInfo.peer_addr, broadcastMacAddr, 6);
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
-  //while(esp_now_add_peer(&peerInfo) != ESP_OK);
-  if (esp_now_add_peer(&peerInfo) != ESP_OK)
-    espnow_add_peer_error = 1;
-
   esp_now_register_recv_cb(OnDataRecv);
 
-//Enlaces a nodos concretos en otra función que se llame al entrar en el modo correspondiente
-  //todo: read the MAC address to get it automaticaly and save it in the struct
-  //todo: send the MAC address and the moduleNumber to the broadcast address
-  //todo: when receiving a message of a node: register the node and send the own MAC address to stablish the communication
-
-/*  for(uint8_t node = 0; node<sizeof(t2t_node)/sizeof(t2t_node[0]); node++)
+  for(uint8_t num=0; num<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); num++)
   {
-    uint16_t sum = 0;
-    for(uint8_t i=0; i<sizeof(t2t_node[0].MACAddr)/sizeof(t2t_node[0].MACAddr[0]); i++)
+    if(MyMACAddrList[num] != thisNode->MACAddr)
     {
-      sum += t2t_node[node].MACAddr[i];
-    }
-    
-    if(node != moduleNumber && sum != 0)
-    {
-      for(uint8_t i=0; i<sizeof(t2t_node[0].MACAddr)/sizeof(t2t_node[0].MACAddr[0]); i++)
-      {
-        esp_now_peer_info_t peerInfo;
-        memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-        peerInfo.channel = 0;
-        peerInfo.encrypt = false;
-        
-//      if (esp_now_add_peer(&peerInfo) != ESP_OK)
-//      {
-//        //Indicar que no se ha enlazado
-//      }
-      }
+      esp_now_peer_info_t peerInfo;
+      memcpy(peerInfo.peer_addr, MyMACAddrList[num], 6);
+      peerInfo.channel = 0;  
+      peerInfo.encrypt = false;
+      if (esp_now_add_peer(&peerInfo) != ESP_OK)
+        return;
+
+      sendESPNowLinkMsg(MyMACAddrList[num], true);
     }
   }
-  
-//  esp_now_register_recv_cb(OnDataRecv);*/
 }
 
-void sendESPNowData(s_espnow_msg msg)
+void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack)
 {
-  /*esp_err_t result = */(void)esp_now_send(broadcastMacAddr, (uint8_t *) &msg, sizeof(msg));
+  s_espnow_link_msg msg;
+  msg.type = (uint8_t)LINK_MSG;
+  msg.nodeAddr = thisNodeAddr;
+  msg.ask4Ack = ask4Ack ? 1u : 0u;
+
+  (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
+
+void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed)
+{
+  s_espnow_mode_msg msg;
+  msg.type = (uint8_t)MODE_MSG;
+  msg.func_mode = func_mode;
+  msg.isRxNodeUsed = isRxNodeUsed ? 1u : 0u;
+
+  (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+void sendESPNowLowBattMsg(uint8_t *MACAddr)
+{
+  s_espnow_default_msg msg;
+  msg.type = (uint8_t)LOW_BATT_MSG;
+
+  (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+void sendESPNowDetectionMsg(uint8_t *MACAddr)
+{
+  s_espnow_default_msg msg;
+  msg.type = (uint8_t)DETECTION_MSG;
+
+  (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+//todo: measure the tx time
+//todo: if the node receives a message with the address of another node, answer with the node address
+//todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
+//todo: if the node is not the main, but it's selected for the mode, set "mainNode" with the main
+//todo: when exit from the mode, release the nodes sending a message with isRxNodeUsed = 0
