@@ -212,15 +212,15 @@ void loop() {
 }
 
 void beep (unsigned char speakerPin, int frequencyInHertz, long timeInMilliseconds)
-{ 
-  int x;   
+{
+  int x;
   long delayAmount = (long)(1000000/frequencyInHertz);
   long loopTime = (long)((timeInMilliseconds*1000)/(delayAmount*2));
-  for (x=0;x<loopTime;x++)   
-  {    
+  for (x=0;x<loopTime;x++)
+  {
     digitalWrite(speakerPin,HIGH);
     delayMicroseconds(delayAmount);
     digitalWrite(speakerPin,LOW);
     delayMicroseconds(delayAmount);
-  }    
-}    
+  }
+}
