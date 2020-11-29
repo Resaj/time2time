@@ -70,7 +70,8 @@ typedef enum {
 uint8_t MyMACAddrList[][6] = {
   {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C},
   {0x24, 0x0A, 0xC4, 0x2A, 0x4C, 0x48},
-  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0xCC}
+  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0xCC},
+  {0x8C, 0xAA, 0xB5, 0xBF, 0x89, 0x74}
 };
 
 s_t2t_node t2t_node[8];      // Matrix to store the information of the nodes
@@ -215,6 +216,7 @@ void sendESPNowDetectionMsg(uint8_t *MACAddr)
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
+//todo: add descriptions of the functions
 //todo: measure the tx time
 //todo: if the node receives a message with the address of another node, answer with the node address
 //todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
