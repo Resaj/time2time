@@ -18,6 +18,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include "config/PINSEL.h"
+#include "config/MyMACAddrList.h"
 #include "espnow_comm.h"
 
 /**********************************************************************
@@ -63,16 +64,6 @@ typedef enum {
 /**********************************************************************
  * Local variables
  *********************************************************************/
-
-/* Define here the MAC addresses of all your #time2time nodes. Up to 8
- * nodes linked. You can read the MAC address running the test program.
- */
-uint8_t MyMACAddrList[][6] = {
-  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C},
-  {0x24, 0x0A, 0xC4, 0x2A, 0x4C, 0x48},
-  {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0xCC},
-  {0x8C, 0xAA, 0xB5, 0xBF, 0x89, 0x74}
-};
 
 s_t2t_node t2t_node[8];      // Matrix to store the information of the nodes
 s_t2t_node *thisNode = NULL; // Pointer to the node position at t2t_node
