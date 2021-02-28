@@ -1,14 +1,13 @@
-G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,5.0.2-bee76a0~70~ubuntu18.04.1*
-G04 #@! TF.CreationDate,2019-10-29T20:18:18+01:00*
+G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,5.1.5+dfsg1-2build2*
+G04 #@! TF.CreationDate,2021-02-28T17:12:47+01:00*
 G04 #@! TF.ProjectId,time2time,74696d65-3274-4696-9d65-2e6b69636164,V1.0*
 G04 #@! TF.SameCoordinates,PX7735940PY3473bc0*
 G04 #@! TF.FileFunction,Profile,NP*
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW 5.0.2-bee76a0~70~ubuntu18.04.1) date mar 29 oct 2019 20:18:18 CET*
+G04 Created by KiCad (PCBNEW 5.1.5+dfsg1-2build2) date 2021-02-28 17:12:47*
 %MOMM*%
 %LPD*%
-G01*
 G04 APERTURE LIST*
 %ADD10C,0.150000*%
 G04 APERTURE END LIST*
