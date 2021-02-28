@@ -56,9 +56,11 @@ typedef struct {
 
 typedef enum {
   LINK_MSG,
+  SYNC_MSG,
   MODE_MSG,
-  LOW_BATT_MSG,
-  DETECTION_MSG
+  DETECTION_MSG,
+  TIME_MSG,
+  LOWBATTERY_MSG
 } msg_type;
 
 /**********************************************************************
@@ -171,6 +173,11 @@ void espnow_comm_init(void)
   }
 }
 
+bool isThisTheMainNode(void)
+{
+  return (thisNode == mainNode);
+}
+
 void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack)
 {
   s_espnow_link_msg msg;
@@ -194,7 +201,7 @@ void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed)
 void sendESPNowLowBattMsg(uint8_t *MACAddr)
 {
   s_espnow_default_msg msg;
-  msg.type = (uint8_t)LOW_BATT_MSG;
+  msg.type = (uint8_t)LOWBATTERY_MSG;
 
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }

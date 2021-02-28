@@ -80,7 +80,7 @@ s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , next_menu_state , first_subtate */
   { NORMAL_LAP_TIME_MODE , "Normal lap time"     , GET_TIME        , INIT_SUBSTATE },
   { X_LAPS_TIME_MODE     , "X laps time"         , SET_NUM_LAPS    , INIT_SUBSTATE },
-  //{ START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
+  { START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
   { TOAST_MODE           , "Get toast time"      , GET_TIME        , INIT_SUBSTATE }
 };
 
@@ -131,6 +131,8 @@ void normal_lap_time_mode(void)
     {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
     {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
+
+  //todo: program partial times
 
   switch(substate)
   {
@@ -310,6 +312,8 @@ void x_laps_time_mode(void)
     {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
+  //todo: program partial times
+
   switch(substate)
   {
     case INIT_SUBSTATE:
@@ -456,6 +460,7 @@ void x_laps_time_mode(void)
 void start_stop_mode(void)
 {
   //todo: program start/stop operating mode
+  uint32_t t_now = 0;
 
   static s_display_text text[] = {
     /* text                  , pos_X , pos_Y , font      , aligment */
@@ -465,14 +470,14 @@ void start_stop_mode(void)
     {  ""                    , 20    , 45    , MENU_FONT , ALIGN_LEFT },
   };
 
-  static s_espnow_msg msg = { moduleNumber, 0 };
+//  static s_espnow_msg msg = { moduleNumber, 0 };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
-      sprintf(text[2].text, "%u", espnow_error);
-      sprintf(text[3].text, "%u", espnow_add_peer_error);
+//      sprintf(text[2].text, "%u", espnow_error);
+//      sprintf(text[3].text, "%u", espnow_add_peer_error);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
@@ -502,6 +507,8 @@ void start_stop_mode(void)
       break;
   }
 }
+
+//todo: program micromouse operating mode
 
 /**********************************************************************
  * @brief Executes the toast time measurement mode and shows the total
@@ -697,73 +704,79 @@ void state_machine_task(void)
   static get_time_mode t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
 
-  /* Main state machine control */
-  switch(state)
+  if(isThisTheMainNode()) // This node is not being controlled by another one
   {
-    case INIT_STATE:
-      /* state actions */
-      show_main_menu(menu_screen_num);
+    /* Main state machine control */
+    switch(state)
+    {
+      case INIT_STATE:
+        /* state actions */
+        show_main_menu(menu_screen_num);
 
-      /* test state changes */
-      state = MAIN_MENU;
-      break;
-      
-    case MAIN_MENU:
-      /* state actions */
+        /* test state changes */
+        state = MAIN_MENU;
+        break;
 
-      /* test state changes */
-      if(get_button_state(BUTTON_A))
-      {
-        t2t_mode = mode_data[menu_screen_num*2].time_mode;
-        state = mode_data[menu_screen_num*2].next_menu_state;
-        substate = mode_data[menu_screen_num*2].first_subtate;
-      }
-      else if(get_button_state(BUTTON_B))
-      {
-        if((menu_screen_num*2 + 1) < sizeof(mode_data)/sizeof(s_mode_data))
+      case MAIN_MENU:
+        /* state actions */
+
+        /* test state changes */
+        if(get_button_state(BUTTON_A))
         {
-          t2t_mode = mode_data[menu_screen_num*2 + 1].time_mode;
-          state = mode_data[menu_screen_num*2 + 1].next_menu_state;
-          substate = mode_data[menu_screen_num*2 + 1].first_subtate;
+          t2t_mode = mode_data[menu_screen_num*2].time_mode;
+          state = mode_data[menu_screen_num*2].next_menu_state;
+          substate = mode_data[menu_screen_num*2].first_subtate;
         }
-      }
-      else if(get_button_state(BUTTON_C))
-      {
-        if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+        else if(get_button_state(BUTTON_B))
         {
-          menu_screen_num++;
-          if(menu_screen_num >= (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)))
-            menu_screen_num = 0;
-          show_main_menu(menu_screen_num);
+          if((menu_screen_num*2 + 1) < sizeof(mode_data)/sizeof(s_mode_data))
+          {
+            t2t_mode = mode_data[menu_screen_num*2 + 1].time_mode;
+            state = mode_data[menu_screen_num*2 + 1].next_menu_state;
+            substate = mode_data[menu_screen_num*2 + 1].first_subtate;
+          }
         }
-      }
-      break;
+        else if(get_button_state(BUTTON_C))
+        {
+          if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+          {
+            menu_screen_num++;
+            if(menu_screen_num >= (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)))
+              menu_screen_num = 0;
+            show_main_menu(menu_screen_num);
+          }
+        }
+        break;
 
-    case SET_NUM_LAPS:
-      /* state actions */
+      case SET_NUM_LAPS:
+        /* state actions */
 
-      /* test state changes */
-      if(x_laps_time_mode_laps_selection())
-      {
-        state = GET_TIME;
-        substate = INIT_SUBSTATE;
-      }
-      break;
+        /* test state changes */
+        if(x_laps_time_mode_laps_selection())
+        {
+          state = GET_TIME;
+          substate = INIT_SUBSTATE;
+        }
+        break;
 
-    case GET_TIME:
-      /* state actions */
-      get_time(t2t_mode);
+      case GET_TIME:
+        /* state actions */
+        get_time(t2t_mode);
 
-      /* test state changes */
-      if(get_button_state(BUTTON_C))
-      {
-        set_default_sensor_active_edge();
-        state = INIT_STATE;
-      }
-      break;
-      
-    default:
-      break;
+        /* test state changes */
+        if(get_button_state(BUTTON_C))
+        {
+          set_default_sensor_active_edge();
+          state = INIT_STATE;
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+  else // This node is being controlled by another one
+  {
   }
 
   /* General function for the RGB led control */
