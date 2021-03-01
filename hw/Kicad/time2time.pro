@@ -1,4 +1,4 @@
-update=dom 28 feb 2021 16:01:43
+update=lun 01 mar 2021 20:26:10
 version=1
 last_client=kicad
 [general]
@@ -67,7 +67,7 @@ OthersTextUpright=1
 SolderMaskClearance=0.051
 SolderMaskMinWidth=0.25
 SolderPasteClearance=0
-SolderPasteRatio=0
+SolderPasteRatio=-0
 [pcbnew/Layer.F.Cu]
 Name=F.Cu
 Type=0
@@ -237,7 +237,7 @@ Enabled=0
 [pcbnew/Netclasses]
 [pcbnew/Netclasses/Default]
 Name=Default
-Clearance=0.12
+Clearance=0.155
 TrackWidth=0.254
 ViaDiameter=0.6
 ViaDrill=0.3048
@@ -248,7 +248,7 @@ dPairGap=0.25
 dPairViaGap=0.25
 [pcbnew/Netclasses/1]
 Name=GND
-Clearance=0.12
+Clearance=0.155
 TrackWidth=0.254
 ViaDiameter=0.6
 ViaDrill=0.3048
@@ -259,7 +259,7 @@ dPairGap=0.25
 dPairViaGap=0.25
 [pcbnew/Netclasses/2]
 Name=Power
-Clearance=0.12
+Clearance=0.155
 TrackWidth=0.3
 ViaDiameter=0.6
 ViaDrill=0.3048
@@ -270,7 +270,7 @@ dPairGap=0.25
 dPairViaGap=0.25
 [pcbnew/Netclasses/3]
 Name=Signal
-Clearance=0.12
+Clearance=0.155
 TrackWidth=0.3
 ViaDiameter=0.6
 ViaDrill=0.3048
