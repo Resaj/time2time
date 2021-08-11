@@ -1,12 +1,11 @@
 EESchema Schematic File Version 4
-LIBS:time2time-cache
-EELAYER 26 0
+EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 3
 Title "time2time project"
-Date "2019-10-29"
+Date "2021-02-28"
 Rev "V1.1"
 Comp "Puma Pride Robotics Team"
 Comment1 "Designed by Rubén Espino San José"

@@ -36,7 +36,7 @@ enum program_state {
   INIT_STATE,
   MAIN_MENU,
   SET_NUM_LAPS,
-  GET_TIME
+  RUN_MODE
 };
 
 enum program_substate {
@@ -52,15 +52,16 @@ enum program_substate {
   FINISHED
 };
 
-enum get_time_mode {
+enum mode2run {
   NORMAL_LAP_TIME_MODE,
   X_LAPS_TIME_MODE,
   START_STOP_MODE,
-  TOAST_MODE
+  TOAST_MODE,
+  SHOW_T2T_INFO
 };
 
 typedef struct {
-  get_time_mode     time_mode;
+  mode2run          time_mode;
   char              text_in_menu[22];
   program_state     next_menu_state;
   program_substate  first_subtate;
@@ -78,10 +79,11 @@ uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
 
 s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , next_menu_state , first_subtate */
-  { NORMAL_LAP_TIME_MODE , "Normal lap time"     , GET_TIME        , INIT_SUBSTATE },
+  { NORMAL_LAP_TIME_MODE , "Normal lap time"     , RUN_MODE        , INIT_SUBSTATE },
   { X_LAPS_TIME_MODE     , "X laps time"         , SET_NUM_LAPS    , INIT_SUBSTATE },
-  { START_STOP_MODE      , "Start/Stop (2x t2t)" , GET_TIME        , INIT_SUBSTATE },
-  { TOAST_MODE           , "Get toast time"      , GET_TIME        , INIT_SUBSTATE }
+  { START_STOP_MODE      , "Start/Stop (2x t2t)" , RUN_MODE        , INIT_SUBSTATE },
+  { TOAST_MODE           , "Get toast time"      , RUN_MODE        , INIT_SUBSTATE },
+  { SHOW_T2T_INFO        , "Time2time info"      , RUN_MODE        , INIT_SUBSTATE }
 };
 
 /**********************************************************************
@@ -98,10 +100,11 @@ void show_main_menu(uint8_t group_num)
 {
   s_display_text text[] = {
     /* text          , pos_X , pos_Y , font      , aligment */
-    { "Select mode:" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    { ""             , 0     , 15    , MENU_FONT , ALIGN_LEFT },
-    { ""             , 0     , 30    , MENU_FONT , ALIGN_LEFT },
-    { "C: ..."       , 0     , 45    , MENU_FONT , ALIGN_LEFT }
+    { "Select mode:" , 0     , 0     , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 15    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 30    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 45    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 125   , 45    , MENU_FONT , ALIGN_RIGHT }
   };
 
   sprintf(text[1].text, "A: %s", mode_data[group_num*2].text_in_menu);
@@ -110,7 +113,10 @@ void show_main_menu(uint8_t group_num)
   else
     sprintf(text[2].text, "");
   if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+  {
     sprintf(text[3].text, "C: ...");
+    sprintf(text[4].text, "(Pg %u/%u)", group_num+1, (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)));
+  }
   else
     sprintf(text[3].text, "");
 
@@ -622,12 +628,88 @@ void toast_mode(void)
 }
 
 /**********************************************************************
+ * @brief Shows the information related to the t2t node
+ */
+void show_t2t_info(void)
+{
+  static uint32_t time_init = 0;
+
+  static s_display_text text[] = {
+    /* Text       , pos_X , pos_Y , font                , aligment  */
+    {  "T2T info" , 0     , 0     , SECONDARY_TIME_FONT , ALIGN_LEFT },
+    {  ""         , 0     , 12    , SECONDARY_TIME_FONT , ALIGN_LEFT },
+    {  ""         , 0     , 24    , SECONDARY_TIME_FONT , ALIGN_LEFT },
+    {  ""         , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT },
+    {  ""         , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* substate actions */
+//todo: uncomment once ESP-now coding has been implemented
+      //sprintf(text[1].text, "Node address: %u", thisNodeAddr);
+      //sprintf(text[2].text, "MAC address: %s", thisNodeMACAddr);
+      sprintf(text[3].text, "Battery voltage: %.2fV", g_batt_voltage/1000.0);
+
+      switch(batt_charger_diag)
+      {
+        case TEMP_OR_TIMER_FAULT: // 0 - Temperature fault or timer fault
+          sprintf(text[4].text, "PW: temp/timer fault");
+          break;
+          
+        case PRECONDITIONING:     // 2 - Preconditioning, constant current or constant voltage
+          sprintf(text[4].text, "PW: charging battery");
+          break;
+          
+        case LOW_BATTERY_OUTPUT:  // 3 - Low battery output
+          sprintf(text[4].text, "PW: low battery");
+          break;
+          
+        case CHARGE_COMPLETE:     // 4 - Charge complete
+          sprintf(text[4].text, "PW: USB-powered");
+          break;
+          
+        case NO_BATTERY:          // 6 - Shutdown (VDD = VIN) or no battery present
+          sprintf(text[4].text, "PW: no battery");
+          break;
+          
+        case NO_INPUT_POWER:      // 7 - Shutdown (VDD = VBAT) or no input power present
+          sprintf(text[4].text, "PW: battery-powered");
+          break;
+          
+        default:
+          sprintf(text[4].text, "PW: no info");
+          break;
+      }
+
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+      time_init = t_now_ms;
+
+      /* test substate changes */
+      substate = FINISHED;
+      break;
+      
+    case FINISHED:
+      /* substate actions */
+
+      /* test substate changes */
+      if(t_now_ms - time_init >= 5000)
+        substate = INIT_SUBSTATE;
+      break;
+
+    default:
+      break;
+  }
+}
+
+/**********************************************************************
  * @brief Calls the function which is corresponded with the selected 
  * t2t functionament mode
  * 
- * @param t2t_mode: time measurement mode
+ * @param t2t_mode: t2t mode to run
  */
-void get_time(get_time_mode t2t_mode)
+void run_mode(mode2run t2t_mode)
 {
   switch(t2t_mode)
   {
@@ -645,6 +727,10 @@ void get_time(get_time_mode t2t_mode)
 
     case TOAST_MODE:
       toast_mode();
+      break;
+
+    case SHOW_T2T_INFO:
+      show_t2t_info();
       break;
 
     default:
@@ -701,7 +787,7 @@ void set_led_from_diags(void)
 void state_machine_task(void)
 {
   static program_state state = INIT_STATE;
-  static get_time_mode t2t_mode = NORMAL_LAP_TIME_MODE;
+  static mode2run t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
 
   if(isThisTheMainNode()) // This node is not being controlled by another one
@@ -754,14 +840,14 @@ void state_machine_task(void)
         /* test state changes */
         if(x_laps_time_mode_laps_selection())
         {
-          state = GET_TIME;
+          state = RUN_MODE;
           substate = INIT_SUBSTATE;
         }
         break;
 
-      case GET_TIME:
+      case RUN_MODE:
         /* state actions */
-        get_time(t2t_mode);
+        run_mode(t2t_mode);
 
         /* test state changes */
         if(get_button_state(BUTTON_C))

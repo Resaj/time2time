@@ -30,7 +30,6 @@ String msg;
 bool button1 = 0;
 bool button2 = 0;
 bool button3 = 0;
-int address = 0;
 bool sensor = 0, sensor_ant = 0;
 int detection_counter = 0;
 bool power_good = 0, stat1 = 0, stat2 = 0;
@@ -135,7 +134,7 @@ void loop() {
       break;
 
     case 6:
-      msg =  String(address = digitalRead(PIN_JP_ADD1)*4 + digitalRead(PIN_JP_ADD2)*2 + digitalRead(PIN_JP_ADD3));
+      msg =  String(digitalRead(PIN_JP_ADD1)*4 + digitalRead(PIN_JP_ADD2)*2 + digitalRead(PIN_JP_ADD3));
       display.drawString(0, 3, "Node address: " + msg + "\nMAC address:\n " + WiFi.macAddress() + "\nPress B to continue");
       if(button2)
         state++;
