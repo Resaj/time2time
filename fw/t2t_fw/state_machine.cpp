@@ -99,10 +99,11 @@ void show_main_menu(uint8_t group_num)
 {
   s_display_text text[] = {
     /* text          , pos_X , pos_Y , font      , aligment */
-    { "Select mode:" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    { ""             , 0     , 15    , MENU_FONT , ALIGN_LEFT },
-    { ""             , 0     , 30    , MENU_FONT , ALIGN_LEFT },
-    { "C: ..."       , 0     , 45    , MENU_FONT , ALIGN_LEFT }
+    { "Select mode:" , 0     , 0     , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 15    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 30    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 0     , 45    , MENU_FONT , ALIGN_LEFT  },
+    { ""             , 125   , 45    , MENU_FONT , ALIGN_RIGHT }
   };
 
   sprintf(text[1].text, "A: %s", mode_data[group_num*2].text_in_menu);
@@ -111,7 +112,10 @@ void show_main_menu(uint8_t group_num)
   else
     sprintf(text[2].text, "");
   if(2 < sizeof(mode_data)/sizeof(s_mode_data))
+  {
     sprintf(text[3].text, "C: ...");
+    sprintf(text[4].text, "(Pg %u/%u)", group_num+1, (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)));
+  }
   else
     sprintf(text[3].text, "");
 
