@@ -633,23 +633,24 @@ void toast_mode(void)
 void show_t2t_info(void)
 {
   static uint32_t time_init = 0;
+  char macMsg[25];
+  char macAddr[18];
 
   static s_display_text text[] = {
-    /* Text       , pos_X , pos_Y , font                , aligment  */
-    {  "T2T info" , 0     , 0     , SECONDARY_TIME_FONT , ALIGN_LEFT },
-    {  ""         , 0     , 12    , SECONDARY_TIME_FONT , ALIGN_LEFT },
-    {  ""         , 0     , 24    , SECONDARY_TIME_FONT , ALIGN_LEFT },
-    {  ""         , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT },
-    {  ""         , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT }
+    /* Text               , pos_X , pos_Y , font                , aligment     */
+    {  "--- T2T info ---" , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER },
+    {  ""                 , 0     , 12    , SECONDARY_TIME_FONT , ALIGN_LEFT   },
+    {  ""                 , 63    , 24    , SECONDARY_TIME_FONT , ALIGN_CENTER },
+    {  ""                 , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT   },
+    {  ""                 , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT   }
   };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
-//todo: uncomment once ESP-now coding has been implemented
-      //sprintf(text[1].text, "Node address: %u", thisNodeAddr);
-      //sprintf(text[2].text, "MAC address: %s", thisNodeMACAddr);
+      sprintf(text[1].text, "Node address: %u", getThisNodeAddr());
+      getThisNodeMACAddr(text[2].text);
       sprintf(text[3].text, "Battery voltage: %.2fV", g_batt_voltage/1000.0);
 
       switch(batt_charger_diag)

@@ -18,7 +18,6 @@
  * Includes
  *********************************************************************/
 
-#include <stdint.h>
 
 /**********************************************************************
  * Global configuration parameters
@@ -40,5 +39,7 @@ void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack);
 void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed);
 void sendESPNowLowBattMsg(uint8_t *MACAddr);
 void sendESPNowDetectionMsg(uint8_t *MACAddr);
+uint8_t getThisNodeAddr(void);
+void getThisNodeMACAddr(char* macAddr);
 
 #endif /* ESPNOW_COMM_H */

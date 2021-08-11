@@ -84,7 +84,7 @@ uint8_t read_moduleNumber(void)
   uint8_t add_bit1 = digitalRead(PIN_JP_ADD1);
   uint8_t add_bit2 = digitalRead(PIN_JP_ADD2);
   uint8_t add_bit3 = digitalRead(PIN_JP_ADD3);
-  return (add_bit3<<2) + (add_bit2<<1) + (add_bit1);
+  return (add_bit1<<2) + (add_bit2<<1) + (add_bit3);
 }
 
 uint8_t config_node(void)
@@ -212,6 +212,16 @@ void sendESPNowDetectionMsg(uint8_t *MACAddr)
   msg.type = (uint8_t)DETECTION_MSG;
 
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+uint8_t getThisNodeAddr(void)
+{
+  return thisNodeAddr;
+}
+
+void getThisNodeMACAddr(char macAddr[18])
+{
+  WiFi.macAddress().toCharArray(macAddr, 18);
 }
 
 //todo: add descriptions of the functions
