@@ -19,14 +19,11 @@ String msg;
 bool button1 = 0;
 bool button2 = 0;
 bool button3 = 0;
-int address = 0;
 bool sensor = 0, sensor_ant = 0;
 int detection_counter = 0;
 bool power_good = 0, stat1 = 0, stat2 = 0;
 
 void setup() {
-  //Serial.begin(115200);
-
   pinMode(JP_ADD1, INPUT);
   pinMode(JP_ADD2, INPUT);
   pinMode(JP_ADD3, INPUT);
@@ -124,7 +121,7 @@ void loop() {
       break;
 
     case 6:
-      msg =  String(address = digitalRead(JP_ADD1)*4 + digitalRead(JP_ADD2)*2 + digitalRead(JP_ADD3));
+      msg =  String(digitalRead(JP_ADD1)*4 + digitalRead(JP_ADD2)*2 + digitalRead(JP_ADD3));
       display.drawString(0, 15, "Node address: " + msg + "\nPress B to continue");
       if(button2)
         state++;
