@@ -93,31 +93,22 @@ uint8_t read_moduleNumber(void)
 }
 
 /**********************************************************************
- * @brief ESPNow node configuration. This function reads the node
- * addresses and returns wether or not the node is in the MAC address
- * list.
+ * @brief Checks if the MAC address is listed in MyMACAddrList.
  * 
- * @returns true if the MAC address is in the list; false if not
+ * @param mac: MAC address of the node
+ * @return: true if the MAC address is listed; false if not
  */
-uint8_t config_node(void)
+bool isMacAddressListed(uint8_t *mac)
 {
   bool isNodeListed = false;
-  uint8_t MACAddr[6];
-  
-  pinMode(PIN_JP_ADD1, INPUT);
-  pinMode(PIN_JP_ADD2, INPUT);
-  pinMode(PIN_JP_ADD3, INPUT);
 
-  thisNodeAddr = read_moduleNumber();
-  
-  WiFi.macAddress(MACAddr);
   for(uint8_t num=0; num<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); num++)
   {
     bool isEqual = true;
-    
-    for(uint8_t pos=0; pos<(sizeof(MACAddr)/sizeof(uint8_t)); pos++)
+
+    for(uint8_t pos=0; pos<strlen((char *)mac)-1; pos++)
     {
-      if(MACAddr[pos] != MyMACAddrList[num][pos])
+      if(mac[pos] != MyMACAddrList[num][pos])
       {
         isEqual = false;
         break;
@@ -131,7 +122,29 @@ uint8_t config_node(void)
       break;
     }
   }
-  if(!isNodeListed)
+
+  return isNodeListed;
+}
+
+/**********************************************************************
+ * @brief ESPNow node configuration. This function reads the node
+ * addresses and returns wether or not the node is in the MAC address
+ * list.
+ * 
+ * @return: true if the MAC address is in the list; false if not
+ */
+bool config_node(void)
+{
+  uint8_t MACAddr[6];
+  
+  pinMode(PIN_JP_ADD1, INPUT);
+  pinMode(PIN_JP_ADD2, INPUT);
+  pinMode(PIN_JP_ADD3, INPUT);
+
+  thisNodeAddr = read_moduleNumber();
+  
+  WiFi.macAddress(MACAddr);
+  if(!isMacAddressListed(MACAddr))
     return false;
 
   t2t_node[thisNodeAddr].prevNode = NULL;
@@ -171,7 +184,7 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
 void espnow_comm_init(void)
 {
   if(!config_node())
-    return; // Node not found in the list. Avoid Wi-fi initialization
+    return; // Node not found in the list. Avoid Wi-Fi initialization
 
   WiFi.mode(WIFI_STA);
 
@@ -190,7 +203,7 @@ void espnow_comm_init(void)
       memcpy(peerInfo.peer_addr, MyMACAddrList[num], 6);
       peerInfo.channel = 0;  
       peerInfo.encrypt = false;
-      if (esp_now_add_peer(&peerInfo) != ESP_OK)
+      if(esp_now_add_peer(&peerInfo) != ESP_OK)
         return;
 
       sendESPNowLinkMsg(MyMACAddrList[num], true);
@@ -201,7 +214,7 @@ void espnow_comm_init(void)
 /**********************************************************************
  * @brief Returns wether or not this is the main node.
  * 
- * @return true if this is the main node; false if not
+ * @return: true if this is the main node; false if not
  */
 bool isThisTheMainNode(void)
 {
@@ -285,16 +298,25 @@ uint8_t getThisNodeAddr(void)
 }
 
 /**********************************************************************
- * @brief Returns the MAC address of this node.
+ * @brief Returns the MAC address of this node if it is listed in the
+ * configuration.
  * 
  * @return: MAC address the node
  */
-void getThisNodeMACAddr(char macAddr[18])
+void getNcheckMACAddr(char macAddr[18])
 {
-  WiFi.macAddress().toCharArray(macAddr, 18);
+  uint8_t mac[6];
+  
+  WiFi.macAddress(mac);
+  if(isMacAddressListed(mac))
+    WiFi.macAddress().toCharArray(macAddr, 18);
+  else
+    sprintf(macAddr, "MAC not listed");
 }
 
-//todo: check the link status between the nodes by writing the linked nodes in the top right corner of the main menu
+//todo: read link messages to know the linked nodes
+//todo: check the link status between the nodes by writing the linked nodes in the info menu
+
 //todo: if the node receives a message with the address of another node, answer with the node address
 //todo: measure the tx time
 //todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main

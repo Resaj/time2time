@@ -633,26 +633,47 @@ void toast_mode(void)
 void show_t2t_info(void)
 {
   static uint32_t time_init = 0;
-  char macMsg[25];
-  char macAddr[18];
+  uint8_t textSize = 0;
+  uint8_t index;
 
   static s_display_text text[] = {
-    /* Text               , pos_X , pos_Y , font                , aligment     */
-    {  "--- T2T info ---" , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER },
-    {  ""                 , 0     , 12    , SECONDARY_TIME_FONT , ALIGN_LEFT   },
-    {  ""                 , 63    , 24    , SECONDARY_TIME_FONT , ALIGN_CENTER },
-    {  ""                 , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT   },
-    {  ""                 , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT   }
+    /* Text , pos_X , pos_Y , font                , aligment      */
+    {  ""   , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER  },
+    {  ""   , 63    , 12    , SECONDARY_TIME_FONT , ALIGN_CENTER  },
+    {  ""   , 0     , 24    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
+    {  ""   , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
+    {  ""   , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT    }
   };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
-      sprintf(text[1].text, "Node address: %u", getThisNodeAddr());
-      getThisNodeMACAddr(text[2].text);
-      sprintf(text[3].text, "Battery voltage: %.2fV", g_batt_voltage/1000.0);
+      sprintf(text[0].text, "--- T2T #%u info ---", getThisNodeAddr());
+      getNcheckMACAddr(text[1].text);
 
+/*      sprintf(text[2].text, "Linked T2T: ");
+      for(textSize=0; text[2].text[textSize]!='\0'; textSize++);
+      for(index=0; index<sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); index++)
+      {
+        //crear nuevo parámetro en la estructura s_t2t_node
+        //crear función en ESPnow para conocer el estado de la estructura t2t_node
+        //al intentar el link al configurar, no devolver con return porque deja de intentar enlazar con otros nodos. Utilizar break
+        //actualizar periódicamente el estado de link de la estructura en t2t_node con los mensajes de sincronización
+        if(t2t_node[index].linked)
+        {
+          itoa(index, text[2].text[textSize], 1);
+        }
+        else
+        {
+          text[2].text[textSize] = '-';
+        }
+        
+        text[2].text[textSize+1] = '\0';
+        textSize++;
+      }
+*/
+      sprintf(text[3].text, "Battery voltage: %.2fV", g_batt_voltage/1000.0);
       switch(batt_charger_diag)
       {
         case TEMP_OR_TIMER_FAULT: // 0 - Temperature fault or timer fault
