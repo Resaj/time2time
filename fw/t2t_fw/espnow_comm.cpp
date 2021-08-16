@@ -79,6 +79,11 @@ s_espnow_default_msg s_receivedMsg;
  * Local functions
  *********************************************************************/
 
+/**********************************************************************
+ * @brief Read the number/address of the node from the peripherals.
+ * 
+ * @returns number of the node. Range [0..7]
+ */
 uint8_t read_moduleNumber(void)
 {
   uint8_t add_bit1 = digitalRead(PIN_JP_ADD1);
@@ -87,6 +92,13 @@ uint8_t read_moduleNumber(void)
   return (add_bit1<<2) + (add_bit2<<1) + (add_bit3);
 }
 
+/**********************************************************************
+ * @brief ESPNow node configuration. This function reads the node
+ * addresses and returns wether or not the node is in the MAC address
+ * list.
+ * 
+ * @returns true if the MAC address is in the list; false if not
+ */
 uint8_t config_node(void)
 {
   bool isNodeListed = false;
@@ -131,9 +143,17 @@ uint8_t config_node(void)
   return true;
 }
 
+/**********************************************************************
+ * @brief Handler executed when there is a ESPNow transmission. For now
+ * it does nothing.
+ */
 void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state) {
 }
 
+/**********************************************************************
+ * @brief Handler executed when there is a ESPNow reception. Copy the
+ * received message to an internal buffer to save the information.
+ */
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len)
 {
   memcpy(&s_receivedMsg, receivedData, sizeof(s_receivedMsg));
@@ -143,10 +163,15 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
  * Global functions
  *********************************************************************/
 
+/**********************************************************************
+ * @brief ESPNow initialization. This function configures de node,
+ * initializes the ESPNow communication and tries to link with the nodes
+ * in the MAC list.
+ */
 void espnow_comm_init(void)
 {
   if(!config_node())
-    return; // Node not found in the list. Avoid Wifi initialization
+    return; // Node not found in the list. Avoid Wi-fi initialization
 
   WiFi.mode(WIFI_STA);
 
@@ -173,11 +198,22 @@ void espnow_comm_init(void)
   }
 }
 
+/**********************************************************************
+ * @brief Returns wether or not this is the main node.
+ * 
+ * @return true if this is the main node; false if not
+ */
 bool isThisTheMainNode(void)
 {
   return (thisNode == mainNode);
 }
 
+/**********************************************************************
+ * @brief Sends an ESPNow message to link to another node.
+ * 
+ * @param MACAddr: MAC address of the remote node
+ * @param ask4Ack: the transmitter requires or not and ACK message
+ */
 void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack)
 {
   s_espnow_link_msg msg;
@@ -188,6 +224,14 @@ void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack)
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
+/**********************************************************************
+ * @brief Sends an ESPNow message to set the mode of a remote linked
+ * node.
+ * 
+ * @param MACAddr: MAC address of the remote node
+ * @param func_mode: functionament mode. Range [0..7]
+ * @param isRxNodeUsed: the remote node is or isn't used
+ */
 void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed)
 {
   s_espnow_mode_msg msg;
@@ -198,35 +242,62 @@ void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed)
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
+/**********************************************************************
+ * @brief Sends an ESPNow message with a low battery warning. The
+ * message includes the voltage of the battery.
+ * 
+ * @param MACAddr: MAC address of the remote node
+ */
 void sendESPNowLowBattMsg(uint8_t *MACAddr)
 {
   s_espnow_default_msg msg;
   msg.type = (uint8_t)LOWBATTERY_MSG;
+  //todo: create a new structure for this message
+  //todo: set the low battery flag and the battery voltage
 
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
+/**********************************************************************
+ * @brief Sends an ESPNow message with the detection of the sensor and
+ * the attempt number. It requires an answer message.
+ * 
+ * @param MACAddr: MAC address of the remote node
+ */
 void sendESPNowDetectionMsg(uint8_t *MACAddr)
 {
   s_espnow_default_msg msg;
   msg.type = (uint8_t)DETECTION_MSG;
+  //todo: create a new structure for this message
+  //todo: set the attemp number
 
   (void)esp_now_send(MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
+/**********************************************************************
+ * @brief Returns the number/address of this node.
+ * 
+ * @return: number of the node. Range [0..7]
+ */
 uint8_t getThisNodeAddr(void)
 {
   return thisNodeAddr;
 }
 
+/**********************************************************************
+ * @brief Returns the MAC address of this node.
+ * 
+ * @return: MAC address the node
+ */
 void getThisNodeMACAddr(char macAddr[18])
 {
   WiFi.macAddress().toCharArray(macAddr, 18);
 }
 
-//todo: add descriptions of the functions
-//todo: measure the tx time
+//todo: check the link status between the nodes by writing the linked nodes in the top right corner of the main menu
 //todo: if the node receives a message with the address of another node, answer with the node address
+//todo: measure the tx time
 //todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
+//todo: if the main node enters in a multiple-node mode, get the required nodes out from the state their are in
 //todo: if the node is not the main, but it's selected for the mode, set "mainNode" with the main
 //todo: when exit from the mode, release the nodes sending a message with isRxNodeUsed = 0
