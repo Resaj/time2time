@@ -140,7 +140,8 @@ bool config_node(void)
   pinMode(PIN_JP_ADD3, INPUT);
 
   thisNodeAddr = read_moduleNumber();
-  
+
+  t2t_node[thisNodeAddr].linked = false;
   t2t_node[thisNodeAddr].prevNode = NULL;
   t2t_node[thisNodeAddr].nextNode = NULL;
 
@@ -205,7 +206,7 @@ void espnow_comm_init(void)
       peerInfo.channel = 0;  
       peerInfo.encrypt = false;
       if(esp_now_add_peer(&peerInfo) != ESP_OK)
-        return;
+        return; //todo: change by break to try to link to the other nodes in the list
 
       sendESPNowLinkMsg(MyMACAddrList[num], true);
     }
@@ -302,24 +303,49 @@ uint8_t getThisNodeAddr(void)
  * @brief Returns the MAC address of this node if it is listed in the
  * configuration.
  * 
- * @return: MAC address the node
+ * @param macAddr: char array to store the MAC address
+ * @return: true is the MAC address has been listed; false if not
  */
-void getNcheckMACAddr(char macAddr[18])
+bool getNcheckMACAddr(char macAddr[18])
 {
   if(NULL != t2t_node[thisNodeAddr].MACAddr)
+  {
     WiFi.macAddress().toCharArray(macAddr, 18);
+    return true;
+  }
   else
+  {
     sprintf(macAddr, "MAC not listed");
+    return false;
+  }
 }
 
-//crear función en ESPnow para conocer el estado de la estructura t2t_node
-//al intentar el link al configurar, no devolver con return porque deja de intentar enlazar con otros nodos. Utilizar break
-//actualizar periódicamente el estado de link de la estructura en t2t_node con los mensajes de sincronización si no llegan otros mensajes
+/**********************************************************************
+ * @brief Returns the amount of linked nodes and saves in the array
+ * passed as reference which their are.
+ * 
+ * @return: number of linked nodes
+ */
+uint8_t getLinkedNodes(uint8_t *nodes)
+{
+  uint8_t linkedNodes = 0;
+  
+  for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(t2t_node[0]); index++)
+  {
+    if(t2t_node[index].linked == true)
+    {
+      nodes[linkedNodes] = index;
+      linkedNodes++;
+    }
+  }
 
-//todo: read link messages to know the linked nodes
-//todo: check the link status between the nodes by writing the linked nodes in the info menu
+  return linkedNodes;
+}
 
+//todo: fix espnow_comm_init function
+//todo: read and send link messages periodically to know the linked nodes if no functionality messages are being interchanged
 //todo: if the node receives a message with the address of another node, answer with the node address
+
 //todo: measure the tx time
 //todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
 //todo: if the main node enters in a multiple-node mode, get the required nodes out from the state their are in

@@ -40,6 +40,7 @@ void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed);
 void sendESPNowLowBattMsg(uint8_t *MACAddr);
 void sendESPNowDetectionMsg(uint8_t *MACAddr);
 uint8_t getThisNodeAddr(void);
-void getNcheckMACAddr(char* macAddr);
+bool getNcheckMACAddr(char* macAddr);
+uint8_t getLinkedNodes(uint8_t *nodes);
 
 #endif /* ESPNOW_COMM_H */

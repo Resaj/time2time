@@ -634,7 +634,9 @@ void show_t2t_info(void)
 {
   static uint32_t time_init = 0;
   uint8_t textSize = 0;
-  uint8_t index;
+  uint8_t MAClisted = false;
+  uint8_t linkedNodes[8];
+  uint8_t numLinkedNodes;
 
   static s_display_text text[] = {
     /* Text , pos_X , pos_Y , font                , aligment      */
@@ -650,25 +652,28 @@ void show_t2t_info(void)
     case INIT_SUBSTATE:
       /* substate actions */
       sprintf(text[0].text, "--- T2T #%u info ---", getThisNodeAddr());
-      getNcheckMACAddr(text[1].text);
+      MAClisted = getNcheckMACAddr(text[1].text);
 
-/*      sprintf(text[2].text, "Linked T2T: ");
-      for(textSize=0; text[2].text[textSize]!='\0'; textSize++);
-      for(index=0; index<sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); index++)
+      if(MAClisted)
       {
-        if(t2t_node[index].linked)
+        numLinkedNodes = getLinkedNodes(linkedNodes);
+
+        if(numLinkedNodes > 0)
         {
-          itoa(index, text[2].text[textSize], 1);
+          sprintf(text[2].text, "Linked T2Ts: ");
+          textSize = strlen(text[2].text);
+          for(uint8_t index=0; index<numLinkedNodes; index++)
+          {
+            text[2].text[textSize] = (char)(linkedNodes[index]+48);
+            textSize++;
+          }
         }
         else
-        {
-          text[2].text[textSize] = '-';
-        }
-        
-        text[2].text[textSize+1] = '\0';
-        textSize++;
+          sprintf(text[2].text, "Linked T2Ts: None");
       }
-*/
+      else
+        sprintf(text[2].text, "Linked T2Ts: -");
+
       sprintf(text[3].text, "Battery voltage: %.2fV", g_batt_voltage/1000.0);
       switch(batt_charger_diag)
       {
