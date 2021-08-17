@@ -27,6 +27,7 @@
 
 typedef struct s_t2t_node {
   uint8_t    *MACAddr;  // MAC address of the ESP node
+  bool       linked;    // Linked flag
   s_t2t_node *prevNode; // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
   s_t2t_node *nextNode; // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
 } s_t2t_node;
@@ -69,7 +70,7 @@ typedef enum {
 
 s_t2t_node t2t_node[8];      // Matrix to store the information of the nodes
 s_t2t_node *thisNode = NULL; // Pointer to the node position at t2t_node
-s_t2t_node *mainNode = NULL; // Pointer to the main node position at t2t_node.
+s_t2t_node *mainNode = NULL; // Pointer to the main node position at t2t_node
                              // Determines the node that manages the total times and the functionament mode
                              // It it set when selecting the functionament mode.
 uint8_t thisNodeAddr;        // Node address (0-7). Defined by the jumpers in the PCB
@@ -96,19 +97,17 @@ uint8_t read_moduleNumber(void)
  * @brief Checks if the MAC address is listed in MyMACAddrList.
  * 
  * @param mac: MAC address of the node
- * @return: true if the MAC address is listed; false if not
+ * @return: the position in the list if the address is found; -1 if not
  */
-bool isMacAddressListed(uint8_t *mac)
+int8_t isMacAddressListed(uint8_t *mac)
 {
-  bool isNodeListed = false;
-
-  for(uint8_t num=0; num<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); num++)
+  for(int8_t index=0; index<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); index++)
   {
     bool isEqual = true;
 
-    for(uint8_t pos=0; pos<strlen((char *)mac)-1; pos++)
+    for(uint8_t pos=0; pos<sizeof(MyMACAddrList[0])/sizeof(uint8_t); pos++)
     {
-      if(mac[pos] != MyMACAddrList[num][pos])
+      if(mac[pos] != MyMACAddrList[index][pos])
       {
         isEqual = false;
         break;
@@ -117,13 +116,11 @@ bool isMacAddressListed(uint8_t *mac)
     
     if(isEqual)
     {
-      t2t_node[thisNodeAddr].MACAddr = MyMACAddrList[num];
-      isNodeListed = true;
-      break;
+      return index;
     }
   }
 
-  return isNodeListed;
+  return -1;
 }
 
 /**********************************************************************
@@ -136,6 +133,7 @@ bool isMacAddressListed(uint8_t *mac)
 bool config_node(void)
 {
   uint8_t MACAddr[6];
+  int8_t pos = -1;
   
   pinMode(PIN_JP_ADD1, INPUT);
   pinMode(PIN_JP_ADD2, INPUT);
@@ -143,12 +141,15 @@ bool config_node(void)
 
   thisNodeAddr = read_moduleNumber();
   
-  WiFi.macAddress(MACAddr);
-  if(!isMacAddressListed(MACAddr))
-    return false;
-
   t2t_node[thisNodeAddr].prevNode = NULL;
   t2t_node[thisNodeAddr].nextNode = NULL;
+
+  WiFi.macAddress(MACAddr);
+  pos = isMacAddressListed(MACAddr);
+  if(pos >= 0)
+    t2t_node[thisNodeAddr].MACAddr = MyMACAddrList[pos];
+  else
+    return false;
   
   thisNode = &t2t_node[thisNodeAddr];
   mainNode = &t2t_node[thisNodeAddr];
@@ -305,14 +306,15 @@ uint8_t getThisNodeAddr(void)
  */
 void getNcheckMACAddr(char macAddr[18])
 {
-  uint8_t mac[6];
-  
-  WiFi.macAddress(mac);
-  if(isMacAddressListed(mac))
+  if(NULL != t2t_node[thisNodeAddr].MACAddr)
     WiFi.macAddress().toCharArray(macAddr, 18);
   else
     sprintf(macAddr, "MAC not listed");
 }
+
+//crear función en ESPnow para conocer el estado de la estructura t2t_node
+//al intentar el link al configurar, no devolver con return porque deja de intentar enlazar con otros nodos. Utilizar break
+//actualizar periódicamente el estado de link de la estructura en t2t_node con los mensajes de sincronización si no llegan otros mensajes
 
 //todo: read link messages to know the linked nodes
 //todo: check the link status between the nodes by writing the linked nodes in the info menu

@@ -656,10 +656,6 @@ void show_t2t_info(void)
       for(textSize=0; text[2].text[textSize]!='\0'; textSize++);
       for(index=0; index<sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); index++)
       {
-        //crear nuevo parámetro en la estructura s_t2t_node
-        //crear función en ESPnow para conocer el estado de la estructura t2t_node
-        //al intentar el link al configurar, no devolver con return porque deja de intentar enlazar con otros nodos. Utilizar break
-        //actualizar periódicamente el estado de link de la estructura en t2t_node con los mensajes de sincronización
         if(t2t_node[index].linked)
         {
           itoa(index, text[2].text[textSize], 1);
