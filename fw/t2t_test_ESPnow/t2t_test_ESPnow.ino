@@ -9,7 +9,7 @@
  * 
  * IMPORTANT NOTE: Before running this ESPnow test,
  * run the test program to get the MAC addresses of
- * run #time2time nodes and modify MACaddr[].
+ * #time2time nodes and modify MACaddr[].
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -28,7 +28,9 @@
 SSD1306Wire g_display(DISPLAY_ADDRESS, PIN_I2C_SDA_DISP, PIN_I2C_SCL_DISP);
 
 // Put the MAC address of the other #time2time node here
-uint8_t MACaddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  uint8_t MACaddr[] = {0x24, 0x0A, 0xC4, 0x2B, 0x44, 0x2C};
+
+uint8_t *BroadcastMACAddr = NULL;
 
 typedef struct {
     char sensor_state;
@@ -63,9 +65,9 @@ void setup() {
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
 
-  esp_now_peer_info_t peerInfo;
+  esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, MACaddr, 6);
-  peerInfo.channel = 0;  
+  peerInfo.channel = 0;
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK)
     return;
@@ -77,15 +79,15 @@ void loop() {
 
   if(s_msg2send.sensor_state != sensor_state)
   {
-    esp_err_t result = esp_now_send(MACaddr, (uint8_t *)&s_msg2send, sizeof(s_msg2send));
-    s_msg2send.sensor_state = sensor_state;
+    esp_err_t result = esp_now_send(BroadcastMACAddr, (uint8_t *)&s_msg2send, sizeof(s_msg2send));
+    sensor_state = s_msg2send.sensor_state;
   }
 
   updateDisplay();
 }
 
 void updateDisplay(){
-  char text[25];
+  char text[5];
 
   g_display.clear();
   if(remoteSensorState == 0)
