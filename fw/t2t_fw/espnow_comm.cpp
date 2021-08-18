@@ -201,12 +201,12 @@ void espnow_comm_init(void)
   {
     if(MyMACAddrList[num] != thisNode->MACAddr)
     {
-      esp_now_peer_info_t peerInfo;
+      esp_now_peer_info_t peerInfo = {};
       memcpy(peerInfo.peer_addr, MyMACAddrList[num], 6);
-      peerInfo.channel = 0;  
+      peerInfo.channel = 0;
       peerInfo.encrypt = false;
       if(esp_now_add_peer(&peerInfo) != ESP_OK)
-        return; //todo: change by break to try to link to the other nodes in the list
+        return;
 
       sendESPNowLinkMsg(MyMACAddrList[num], true);
     }
@@ -342,7 +342,7 @@ uint8_t getLinkedNodes(uint8_t *nodes)
   return linkedNodes;
 }
 
-//todo: fix espnow_comm_init function
+//todo: show initialization problems in the display. Maybe try to reset automatically the node
 //todo: read and send link messages periodically to know the linked nodes if no functionality messages are being interchanged
 //todo: if the node receives a message with the address of another node, answer with the node address
 
