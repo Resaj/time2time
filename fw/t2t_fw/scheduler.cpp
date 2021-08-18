@@ -92,7 +92,7 @@ void tasks_10ms(void)
   buzzer_task();
   state_machine_task();
   led_task();
-  //todo: manage ESP-Now communication
+  espnow_task();
 }
 
 /**********************************************************************

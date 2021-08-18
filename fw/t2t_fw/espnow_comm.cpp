@@ -342,6 +342,15 @@ uint8_t getLinkedNodes(uint8_t *nodes)
   return linkedNodes;
 }
 
+/**********************************************************************
+ * @brief Controls the ESPnow periodical communication. This function
+ * has to be called  periodically through an scheduler.
+ */
+void espnow_task(void)
+{
+  //todo: fill this function
+}
+
 //todo: show initialization problems in the display. Maybe try to reset automatically the node
 //todo: read and send link messages periodically to know the linked nodes if no functionality messages are being interchanged
 //todo: if the node receives a message with the address of another node, answer with the node address

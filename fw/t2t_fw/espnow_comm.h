@@ -42,5 +42,6 @@ void sendESPNowDetectionMsg(uint8_t *MACAddr);
 uint8_t getThisNodeAddr(void);
 bool getNcheckMACAddr(char* macAddr);
 uint8_t getLinkedNodes(uint8_t *nodes);
+void espnow_task(void);
 
 #endif /* ESPNOW_COMM_H */
