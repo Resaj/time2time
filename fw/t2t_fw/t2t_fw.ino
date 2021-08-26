@@ -23,25 +23,13 @@
  *********************************************************************/
 
 void setup() {
+  // Initialize tasks
   init_setup_task();
+
+  // Configure wake up mode
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 0);
 }
 
 void loop() {
   scheduler_task();
-}
-
-void sleep(void)
-{
-  //todo: red led to blink state
-  //      shut down the display
-  //      disable sensor interrupt
-  power_12v_disable();
-}
-
-void wake_up(void)
-{
-  power_12v_enable();
-  //todo: disable sensor interrupt
-  //      turn on the display
-  //      shut down red led
 }

@@ -57,15 +57,33 @@ enum mode2run {
   X_LAPS_TIME_MODE,
   START_STOP_MODE,
   TOAST_MODE,
-  SHOW_T2T_INFO
+  SHOW_T2T_INFO,
+  ONLY_CHARGE
 };
+
+typedef void (*function)(void);
 
 typedef struct {
   mode2run          time_mode;
   char              text_in_menu[22];
+  function          func;
   program_state     next_menu_state;
   program_substate  first_subtate;
 } s_mode_data;
+
+/**********************************************************************
+ * Local functions declarations
+ *********************************************************************/
+
+void show_main_menu(uint8_t group_num);
+void normal_lap_time_mode(void);
+uint16_t x_laps_time_mode_laps_selection(void);
+void x_laps_time_mode(void);
+void start_stop_mode(void);
+void toast_mode(void);
+void show_t2t_info(void);
+void set_led_from_diags(void);
+void go_to_sleep(void);
 
 /**********************************************************************
  * Local variables
@@ -78,12 +96,13 @@ uint32_t best_time_lap_ms = BEST_TIME_INIT_VALUE;
 uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
 
 s_mode_data mode_data[] = {
-  /* time_mode           , text_in_menu          , next_menu_state , first_subtate */
-  { NORMAL_LAP_TIME_MODE , "Normal lap time"     , RUN_MODE        , INIT_SUBSTATE },
-  { X_LAPS_TIME_MODE     , "X laps time"         , SET_NUM_LAPS    , INIT_SUBSTATE },
-  { START_STOP_MODE      , "Start/Stop (2x t2t)" , RUN_MODE        , INIT_SUBSTATE },
-  { TOAST_MODE           , "Get toast time"      , RUN_MODE        , INIT_SUBSTATE },
-  { SHOW_T2T_INFO        , "Time2time info"      , RUN_MODE        , INIT_SUBSTATE }
+  /* time_mode           , text_in_menu          , func                 , next_menu_state , first_subtate */
+  { NORMAL_LAP_TIME_MODE , "Normal lap time"     , normal_lap_time_mode , RUN_MODE        , INIT_SUBSTATE },
+  { X_LAPS_TIME_MODE     , "X laps time"         , x_laps_time_mode     , SET_NUM_LAPS    , INIT_SUBSTATE },
+  { START_STOP_MODE      , "Start/Stop (2x t2t)" , start_stop_mode      , RUN_MODE        , INIT_SUBSTATE },
+  { TOAST_MODE           , "Get toast time"      , toast_mode           , RUN_MODE        , INIT_SUBSTATE },
+  { SHOW_T2T_INFO        , "Time2time info"      , show_t2t_info        , RUN_MODE        , INIT_SUBSTATE },
+  { ONLY_CHARGE          , "Only charge"         , go_to_sleep          , RUN_MODE        , INIT_SUBSTATE }
 };
 
 /**********************************************************************
@@ -727,41 +746,6 @@ void show_t2t_info(void)
 }
 
 /**********************************************************************
- * @brief Calls the function which is corresponded with the selected 
- * t2t functionament mode
- * 
- * @param t2t_mode: t2t mode to run
- */
-void run_mode(mode2run t2t_mode)
-{
-  switch(t2t_mode)
-  {
-    case NORMAL_LAP_TIME_MODE:
-      normal_lap_time_mode();
-      break;
-      
-    case X_LAPS_TIME_MODE:
-      x_laps_time_mode();
-      break;
-      
-    case START_STOP_MODE:
-      start_stop_mode();
-      break;
-
-    case TOAST_MODE:
-      toast_mode();
-      break;
-
-    case SHOW_T2T_INFO:
-      show_t2t_info();
-      break;
-
-    default:
-      break;
-  }
-}
-
-/**********************************************************************
  * @brief Set the status of the led according to the supply diagnostics
  */
 void set_led_from_diags(void)
@@ -796,6 +780,24 @@ void set_led_from_diags(void)
       set_rgb_led_off_mode();
       break;
   }
+}
+
+/**********************************************************************
+ * @brief Go-to-sleep function. The node goes to sleep and the
+ * peripherals are disabled to avoid conmsumption and let a faster
+ * charge of the battery.
+ */
+void go_to_sleep(void)
+{
+  static s_display_text text[] = {
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , SECONDARY_TIME_FONT , ALIGN_LEFT }
+  };
+
+  display_set_data(text, sizeof(text)/sizeof(s_display_text));
+  display_task();
+  //todo: disable the sensor
+  esp_deep_sleep_start();
 }
 
 /**********************************************************************
@@ -870,7 +872,7 @@ void state_machine_task(void)
 
       case RUN_MODE:
         /* state actions */
-        run_mode(t2t_mode);
+        (*mode_data[t2t_mode].func)();
 
         /* test state changes */
         if(get_button_state(BUTTON_C))
