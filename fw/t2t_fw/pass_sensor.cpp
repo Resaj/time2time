@@ -87,6 +87,16 @@ void pass_sensor_init(void)
 }
 
 /**********************************************************************
+ * @brief Disable the pass sensor to avoid consumption
+ *
+ * @param lock: lock the pin after disabling
+ */
+void disable_pass_sensor(bool lock)
+{
+  power_12v_disable(lock);
+}
+
+/**********************************************************************
  * @brief Initializes the external interruption with the default active
  * edge, specified with DEFAULT_SENSOR_ACTIVE_EDGE
  */

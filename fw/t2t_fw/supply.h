@@ -24,6 +24,9 @@
  * Defines & enums
  *********************************************************************/
 
+#define LOCK_POWER_12V_PIN    true
+#define NO_LOCK_POWER_12_PIN  false
+
 typedef enum
 {
   // (STAT1 << 2) + (STAT2 << 1) + PG
@@ -56,6 +59,6 @@ void batt_monitor_init(void);
 void supply_task(void);
 void power_12v_init(void);
 void power_12v_enable(void);
-void power_12v_disable(void);
+void power_12v_disable(bool lock);
 
 #endif /* SUPPLY_H */

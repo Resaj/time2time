@@ -125,6 +125,7 @@ void supply_task(void)
  */
 void power_12v_init(void)
 {
+  gpio_hold_dis((gpio_num_t)PIN_SLEEP_12V); // Release pin held before a possible deep sleep
   pinMode(PIN_SLEEP_12V, OUTPUT);
   power_12v_enable();
 }
@@ -139,8 +140,13 @@ void power_12v_enable(void)
 
 /**********************************************************************
  * @brief Disable the 12V supply
+ * 
+ * @param lock: lock the pin after disabling
  */
-void power_12v_disable(void)
+void power_12v_disable(bool lock)
 {
   digitalWrite(PIN_SLEEP_12V, POWER_12V_OFF);
+
+  if(lock)
+    gpio_hold_en((gpio_num_t)PIN_SLEEP_12V);
 }

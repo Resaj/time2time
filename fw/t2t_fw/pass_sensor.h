@@ -33,6 +33,7 @@ extern uint32_t time_detection;
  *********************************************************************/
 
 void pass_sensor_init(void);
+void disable_pass_sensor(bool lock);
 void release_sensor_detection(void);
 void set_default_sensor_active_edge(void);
 void invert_sensor_active_edge(void);

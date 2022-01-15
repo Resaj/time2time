@@ -796,7 +796,7 @@ void go_to_sleep(void)
 
   display_set_data(text, sizeof(text)/sizeof(s_display_text));
   display_task();
-  //todo: disable the sensor
+  disable_pass_sensor(LOCK_POWER_12V_PIN);
   esp_deep_sleep_start();
 }
 
