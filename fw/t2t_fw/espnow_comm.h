@@ -35,10 +35,10 @@
 
 void espnow_comm_init(void);
 bool isThisTheMainNode(void);
-void sendESPNowLinkMsg(uint8_t *MACAddr, bool ask4Ack);
-void sendESPNowModeMsg(uint8_t *MACAddr, uint8_t func_mode, bool isRxNodeUsed);
-void sendESPNowLowBattMsg(uint8_t *MACAddr);
-void sendESPNowDetectionMsg(uint8_t *MACAddr);
+void sendESPNowLinkMsg(uint8_t nodeAddr, bool ask4Ack);
+void sendESPNowModeMsg(uint8_t nodeAddr, uint8_t func_mode, bool isRxNodeUsed);
+void sendESPNowLowBattMsg(uint8_t nodeAddr);
+void sendESPNowDetectionMsg(uint8_t nodeAddr);
 uint8_t getThisNodeAddr(void);
 bool getNcheckMACAddr(char* macAddr);
 uint8_t getLinkedNodes(uint8_t *nodes);

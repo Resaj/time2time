@@ -657,7 +657,7 @@ void show_t2t_info(void)
   uint8_t linkedNodes[8];
   uint8_t numLinkedNodes;
 
-  static s_display_text text[] = {
+  s_display_text text[] = {
     /* Text , pos_X , pos_Y , font                , aligment      */
     {  ""   , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER  },
     {  ""   , 63    , 12    , SECONDARY_TIME_FONT , ALIGN_CENTER  },
