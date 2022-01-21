@@ -27,10 +27,11 @@
  *********************************************************************/
 
 typedef struct s_t2t_node {
-  uint8_t    *MACAddr;  // MAC address of the ESP node
-  bool       linked;    // Linked flag
-  s_t2t_node *prevNode; // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
-  s_t2t_node *nextNode; // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  uint8_t    *MACAddr;          // MAC address of the ESP node
+  bool       linked;            // Linked flag
+  uint32_t   lastLinkMsgRx_ms;  // Last time that a link message has been received from the remote node
+  s_t2t_node *prevNode;         // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  s_t2t_node *nextNode;         // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
 } s_t2t_node;
 
 
@@ -148,9 +149,7 @@ int8_t isMacAddressListed(uint8_t *mac)
     }
     
     if(isEqual)
-    {
       return index;
-    }
   }
 
   return -1;
@@ -186,6 +185,7 @@ uint8_t config_node(void)
 
   t2t_node[thisNodeAddr].MACAddr = MyMACAddrList[pos];
   t2t_node[thisNodeAddr].linked = false;
+  t2t_node[thisNodeAddr].lastLinkMsgRx_ms = 0;
   t2t_node[thisNodeAddr].prevNode = NULL;
   t2t_node[thisNodeAddr].nextNode = NULL;
 
@@ -257,8 +257,6 @@ void espnow_comm_init(void)
       peerInfo.encrypt = false;
       if(esp_now_add_peer(&peerInfo) != ESP_OK)
         return;
-
-      sendESPNowLinkMsg(num, true);
     }
   }
 }
@@ -404,9 +402,10 @@ void espnow_task(void)
   };
 
   uint32_t t_now = 0;
-  static uint32_t time_last_link_attempt_ms = 0;
+  static uint32_t lastInitLinkAttempt_ms = 0;
+  static uint32_t lastLinkMsgTx_ms = 0;
   static e_comm_state comm_state = INIT_LINK;
-  static uint8_t link_attempts = 1;
+  static uint8_t link_attempts = 0;
   
   // Check incoming messages
   if(nextMsgBuff2write != nextMsgBuff2read)
@@ -434,6 +433,7 @@ void espnow_task(void)
           t2t_node[nodeAddress].prevNode = NULL;
           t2t_node[nodeAddress].nextNode = NULL;
         }
+        t2t_node[nodeAddress].lastLinkMsgRx_ms = t_now_ms;
         
         if(msg_link.ask4Addr) // If the remote node asks for the address of this node, send it
           sendESPNowLinkMsg(nodeAddress, false);
@@ -493,9 +493,9 @@ void espnow_task(void)
     case INIT_LINK:
       /* substate actions */
       t_now = t_now_ms;
-      if(t_now - time_last_link_attempt_ms >= 50)
+      if(t_now - lastInitLinkAttempt_ms >= 50)
       {
-        time_last_link_attempt_ms = t_now;
+        lastInitLinkAttempt_ms = t_now;
         link_attempts++;
 
         for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
@@ -514,8 +514,31 @@ void espnow_task(void)
       break;
 
     case STANDBY:
-    default:
+      /* substate actions */
+      t_now = t_now_ms;
+
+      for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
+      {
+        if(t_now - t2t_node[index].lastLinkMsgRx_ms > 3000)
+          t2t_node[index].linked = false; // If no link message has been received from a remote node after 3 seconds, mark it as not linked
+      }
+      
+      if(t_now - lastLinkMsgTx_ms >= 2500)
+      {
+        lastLinkMsgTx_ms = t_now;
+        
+        for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
+        {
+          if(thisNode != &t2t_node[index] && t2t_node[index].linked == true)
+            sendESPNowLinkMsg(index, false); // Send periodic link messages to the linked nodes every 2.5 seconds to hold the communication
+        }
+      }
+
+      /* test substate changes */
       break;
+
+      default:
+        break;
   }
 }
 

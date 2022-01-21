@@ -736,7 +736,7 @@ void show_t2t_info(void)
       /* substate actions */
 
       /* test substate changes */
-      if(t_now_ms - time_init >= 5000)
+      if(t_now_ms - time_init >= 3000)
         substate = INIT_SUBSTATE;
       break;
 
