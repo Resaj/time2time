@@ -54,7 +54,7 @@ void IRAM_ATTR sensor_isr(void)
   
   if(!sensor_interrupt_flag)
   {
-    time_detection = t_now_ms;
+    time_detection = get_currentTimeMs();
     sensor_interrupt_flag = true;
   }
   

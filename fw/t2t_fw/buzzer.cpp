@@ -102,17 +102,17 @@ uint8_t do_buzzer_task(void)
   static uint32_t t = 0;
   uint32_t t_now = 0;
   uint8_t done = 0;
-  
+
   switch(buzzer_state[buzzer_state_actual_index])
   {
     case BUZZER_BEEP_INIT:
       buzzer_pwm_set(BUZZER_ON);
-      t = t_now_ms;
+      t = get_currentTimeMs();
       done = 1;
       break;
       
     case BUZZER_SHORT_BEEP:
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       if(t_now - t >= SHORT_BEEP_TIME)
       {
         buzzer_pwm_set(BUZZER_OFF);
@@ -122,7 +122,7 @@ uint8_t do_buzzer_task(void)
       break;
 
     case BUZZER_LARGE_BEEP:
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       if(t_now - t >= LARGE_BEEP_TIME)
       {
         buzzer_pwm_set(BUZZER_OFF);
@@ -132,7 +132,7 @@ uint8_t do_buzzer_task(void)
       break;
 
     case BUZZER_SHORT_MUTE:
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       if(t_now - t >= SHORT_MUTE_TIME)
       {
         buzzer_pwm_set(BUZZER_ON);
@@ -142,7 +142,7 @@ uint8_t do_buzzer_task(void)
       break;
 
     case BUZZER_LARGE_MUTE:
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       if(t_now - t >= LARGE_MUTE_TIME)
       {
         buzzer_pwm_set(BUZZER_ON);
@@ -152,7 +152,7 @@ uint8_t do_buzzer_task(void)
       break;
 
     case BUZZER_MUTE_AND_STOP:
-      if(t_now_ms - t >= MIN_MUTE_TIME_AT_FINISH)
+      if(get_currentTimeMs() - t >= MIN_MUTE_TIME_AT_FINISH)
         done = 1;
       break;
 

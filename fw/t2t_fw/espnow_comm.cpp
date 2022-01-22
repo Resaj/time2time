@@ -435,7 +435,7 @@ void espnow_task(void)
           t2t_node[nodeAddress].prevNode = NULL;
           t2t_node[nodeAddress].nextNode = NULL;
         }
-        t2t_node[nodeAddress].lastLinkMsgRx_ms = t_now_ms;
+        t2t_node[nodeAddress].lastLinkMsgRx_ms = get_currentTimeMs();
         
         if(msg_link.ask4Addr) // If the remote node asks for the address of this node, send it
           sendESPNowLinkMsg(nodeAddress, false);
@@ -494,7 +494,7 @@ void espnow_task(void)
   {
     case INIT_LINK:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       if(t_now - lastInitLinkAttempt_ms >= 50)
       {
         lastInitLinkAttempt_ms = t_now;
@@ -517,7 +517,7 @@ void espnow_task(void)
 
     case STANDBY:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
 
       // If no link message has been received from a remote node after 3 seconds, mark it as not linked
       for(uint8_t index=0; index<nNodes; index++)

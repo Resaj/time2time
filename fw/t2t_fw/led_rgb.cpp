@@ -352,8 +352,10 @@ void led_task(void)
 
   if(update_led_status)
   {
+    uint32_t t_now = 0;
     s_rgb_color rgb_color;
     get_basic_color(led_mode.rgb_color, &rgb_color);
+    t_now = get_currentTimeMs();
 
     switch(led_mode.wave_form)
     {
@@ -363,15 +365,15 @@ void led_task(void)
         break;
         
       case SQUARE_WAVE:
-        set_square_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
+        set_square_wave_brightness(&rgb_color, (uint16_t)(t_now - t));
         break;
         
       case TRIANGLE_WAVE:
-        set_triangle_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
+        set_triangle_wave_brightness(&rgb_color, (uint16_t)(t_now - t));
         break;
         
       case SINUSOIDAL_WAVE:
-        set_sinusoidal_wave_brightness(&rgb_color, (uint16_t)(t_now_ms - t));
+        set_sinusoidal_wave_brightness(&rgb_color, (uint16_t)(t_now - t));
         break;
         
       default:
@@ -381,7 +383,7 @@ void led_task(void)
 
     set_rgb_led(rgb_color);
 
-    if(t_now_ms - t >= led_mode.period)
-      t = t_now_ms;
+    if(t_now - t >= led_mode.period)
+      t = t_now;
   }
 }

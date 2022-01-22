@@ -187,7 +187,7 @@ void normal_lap_time_mode(void)
       
     case SHOW_TIME_WITHOUT_DETECTION:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -202,7 +202,7 @@ void normal_lap_time_mode(void)
     
     case WAIT_FOR_DETECTION:
       /* substate actions */
-      sprintf(text[0].text, "%.3f", (t_now_ms - time_last_detection)/1000.0);
+      sprintf(text[0].text, "%.3f", (get_currentTimeMs() - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
@@ -235,7 +235,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(t_now_ms - time_detection > 1000)
+      if(get_currentTimeMs() - time_detection > 1000)
       {
         release_sensor_detection();
         substate = DETECTED_AND_SENSING_ACTIVED;
@@ -248,7 +248,7 @@ void normal_lap_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(t_now_ms - time_last_detection > 2000)
+      else if(get_currentTimeMs() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       
@@ -370,7 +370,7 @@ void x_laps_time_mode(void)
       
     case SHOW_TIME_WITHOUT_DETECTION:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -386,7 +386,7 @@ void x_laps_time_mode(void)
       
     case WAIT_FOR_DETECTION:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -433,7 +433,7 @@ void x_laps_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(t_now_ms - time_detection > 1000)
+      if(get_currentTimeMs() - time_detection > 1000)
       {
         if(laps_to_go == 0)
           substate = SHOW_FINAL_TIME;
@@ -451,7 +451,7 @@ void x_laps_time_mode(void)
       /* test substate changes */
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
-      else if(t_now_ms - time_last_detection > 2000)
+      else if(get_currentTimeMs() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
       break;
       
@@ -513,7 +513,7 @@ void start_stop_mode(void)
       /* substate actions */
 /*      if(get_button_state(BUTTON_A))
       {
-        msg.last_time_sensor_detection = t_now_ms;
+        msg.last_time_sensor_detection = get_currentTimeMs();
         sendESPNowData(msg);
       }
 
@@ -582,7 +582,7 @@ void toast_mode(void)
       
     case SHOW_TIME_WITHOUT_DETECTION:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Press B to abort");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -601,7 +601,7 @@ void toast_mode(void)
       
     case WAIT_FOR_DETECTION:
       /* substate actions */
-      t_now = t_now_ms;
+      t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Press B to abort");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -726,7 +726,7 @@ void show_t2t_info(void)
       }
 
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
-      time_init = t_now_ms;
+      time_init = get_currentTimeMs();
 
       /* test substate changes */
       substate = FINISHED;
@@ -736,7 +736,7 @@ void show_t2t_info(void)
       /* substate actions */
 
       /* test substate changes */
-      if(t_now_ms - time_init >= 3000)
+      if(get_currentTimeMs() - time_init >= 3000)
         substate = INIT_SUBSTATE;
       break;
 
