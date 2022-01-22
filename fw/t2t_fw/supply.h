@@ -42,7 +42,6 @@ typedef enum
  * Global configuration parameters
  *********************************************************************/
 
-#define BATT_VOLT_ALARM   3500u // Minimum battery voltage to active low battery warning (millivolts)
 
 /**********************************************************************
  * Global variables
@@ -57,6 +56,8 @@ extern e_batt_charger_diag batt_charger_diag;
 
 void batt_monitor_init(void);
 void supply_task(void);
+uint16_t get_battery_voltage(void);
+bool is_battery_undervoltage(void);
 void power_12v_init(void);
 void power_12v_enable(void);
 void power_12v_disable(bool lock);

@@ -34,7 +34,6 @@ typedef struct s_t2t_node {
   s_t2t_node *nextNode;         // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
 } s_t2t_node;
 
-
 typedef struct {
   uint8_t nodeAddr  : 4;
   uint8_t msgLength : 4;
@@ -100,7 +99,8 @@ typedef enum {
  * Local variables
  *********************************************************************/
 
-s_t2t_node t2t_node[8];      // Matrix to store the information of the nodes
+const uint8_t nNodes = sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); // Number of nodes available in the MAC list
+s_t2t_node t2t_node[nNodes]; // Matrix to store the information of the nodes. Up to 8 nodes
 s_t2t_node *thisNode = NULL; // Pointer to the node position at t2t_node
 s_t2t_node *mainNode = NULL; // Pointer to the main node position at t2t_node
                              // Determines the node that manages the total times and the functionament mode
@@ -117,7 +117,7 @@ uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
 /**********************************************************************
  * @brief Read the number/address of the node from the peripherals.
  * 
- * @returns number of the node. Range [0..7]
+ * @return: number of the node. Range [0..7]
  */
 uint8_t read_moduleNumber(void)
 {
@@ -135,7 +135,7 @@ uint8_t read_moduleNumber(void)
  */
 int8_t isMacAddressListed(uint8_t *mac)
 {
-  for(int8_t index=0; index<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); index++)
+  for(int8_t index=0; index<nNodes; index++)
   {
     bool isEqual = true;
 
@@ -216,7 +216,7 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
     rxBuffer[nextMsgBuff2write].nodeAddr = posNodeInList;
     rxBuffer[nextMsgBuff2write].msgLength = len;
     
-    for(int index=0; index<len; index++)
+    for(int8_t index=0; index<len; index++)
       rxBuffer[nextMsgBuff2write].msg[index] = receivedData[index];
       
     nextMsgBuff2write++;
@@ -247,12 +247,12 @@ void espnow_comm_init(void)
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
 
-  for(uint8_t num=0; num<(sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0])); num++)
+  for(uint8_t index=0; index<nNodes; index++)
   {
-    if(num != thisNodeAddr)
+    if(index != thisNodeAddr)
     {
       esp_now_peer_info_t peerInfo = {};
-      memcpy(peerInfo.peer_addr, MyMACAddrList[num], 6);
+      memcpy(peerInfo.peer_addr, MyMACAddrList[index], 6);
       peerInfo.channel = 0;
       peerInfo.encrypt = false;
       if(esp_now_add_peer(&peerInfo) != ESP_OK)
@@ -305,22 +305,6 @@ void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode)
 }
 
 /**********************************************************************
- * @brief Sends an ESPNow message with a low battery warning. The
- * message includes the voltage of the battery.
- * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
- */
-void sendESPNowLowBattMsg(uint8_t nodeAddress)
-{
-  s_espnow_default_msg msg;
-  msg.type = (uint8_t)LOWBATTERY_MSG;
-  //todo: create a new structure for this message
-  //todo: set the low battery flag and the battery voltage
-
-  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
-}
-
-/**********************************************************************
  * @brief Sends an ESPNow message with the detection of the sensor and
  * the attempt number. It requires an answer message.
  * 
@@ -332,6 +316,24 @@ void sendESPNowDetectionMsg(uint8_t nodeAddress)
   msg.type = (uint8_t)DETECTION_MSG;
   //todo: create a new structure for this message
   //todo: set the attemp number
+
+  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+/**********************************************************************
+ * @brief Sends an ESPNow message with a low battery warning. The
+ * message includes the voltage of the battery.
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @param battLow_flag: true if the battery is undervoltage; false if not
+ * @param battVoltage: voltage of the battery (millivolts)
+ */
+void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battVoltage)
+{
+  s_espnow_lowBattery_msg msg;
+  msg.type = (uint8_t)LOWBATTERY_MSG;
+  msg.lowBatt = battLow_flag? 1 : 0;
+  msg.battVoltage = (uint8_t)((battVoltage - 2700)/100);
 
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
@@ -378,9 +380,9 @@ uint8_t getLinkedNodes(uint8_t *nodes)
 {
   uint8_t linkedNodes = 0;
   
-  for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(t2t_node[0]); index++)
+  for(uint8_t index=0; index<nNodes; index++)
   {
-    if(t2t_node[index].linked == true)
+    if(t2t_node[index].linked)
     {
       nodes[linkedNodes] = index;
       linkedNodes++;
@@ -475,8 +477,8 @@ void espnow_task(void)
         s_espnow_lowBattery_msg msg_lowBattery;
         memcpy(&msg_lowBattery, rxBuffer[nextMsgBuff2read].msg, msgLength);
 
-        //todo: fill
-      
+        //todo: redirect to the remote device (PC or mobile App)
+
         break;
 
       default:
@@ -498,9 +500,9 @@ void espnow_task(void)
         lastInitLinkAttempt_ms = t_now;
         link_attempts++;
 
-        for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
+        for(uint8_t index=0; index<nNodes; index++)
         {
-          if(thisNode != &t2t_node[index] && t2t_node[index].linked == false)
+          if(thisNode != &t2t_node[index] && !t2t_node[index].linked)
             sendESPNowLinkMsg(index, true);
         }
       }
@@ -509,7 +511,7 @@ void espnow_task(void)
       uint8_t linkedNodes[8];
       if(link_attempts >= 3)
         comm_state = STANDBY;
-      else if(getLinkedNodes(linkedNodes) >= (sizeof(t2t_node)/sizeof(s_t2t_node) - 1))
+      else if(getLinkedNodes(linkedNodes) >= (nNodes-1))
         comm_state = STANDBY;
       break;
 
@@ -517,24 +519,27 @@ void espnow_task(void)
       /* substate actions */
       t_now = t_now_ms;
 
-      for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
+      // If no link message has been received from a remote node after 3 seconds, mark it as not linked
+      for(uint8_t index=0; index<nNodes; index++)
       {
-        if(t_now - t2t_node[index].lastLinkMsgRx_ms > 3000)
-          t2t_node[index].linked = false; // If no link message has been received from a remote node after 3 seconds, mark it as not linked
+        if(t_now - t2t_node[index].lastLinkMsgRx_ms > 3000 && t2t_node[index].linked)
+          t2t_node[index].linked = false;
       }
-      
+
+      // Send periodic link messages to the linked nodes every 2.5 seconds to maintain the communication alive
       if(t_now - lastLinkMsgTx_ms >= 2500)
       {
         lastLinkMsgTx_ms = t_now;
         
-        for(uint8_t index=0; index<sizeof(t2t_node)/sizeof(s_t2t_node); index++)
+        for(uint8_t index=0; index<nNodes; index++)
         {
-          if(thisNode != &t2t_node[index] && t2t_node[index].linked == true)
-            sendESPNowLinkMsg(index, false); // Send periodic link messages to the linked nodes every 2.5 seconds to hold the communication
+          if(thisNode != &t2t_node[index] && t2t_node[index].linked)
+            sendESPNowLinkMsg(index, false);
         }
       }
 
       /* test substate changes */
+      
       break;
 
       default:
@@ -542,9 +547,13 @@ void espnow_task(void)
   }
 }
 
-//sincronizar con los mensajes de sync únicamente durante los modos de funcionamiento y visualizar la sincronización con el led
-//si se solicita un nodo para tomar parciales y está ocupado, ignorar mensaje (añadirlo al esquema)
-//utilizar bits reservados del mensaje de link para verificar la versión del programa
+//todo: fusionar los mensajes de link y sync. Quitar node address y ask for address y poner ask for ACK.
+//todo: Añadir a s_rxBuffer una variable de tiempo para guardar el momento de Rx del mensaje
+//todo: Añadir a s_t2t_node una variable de si el nodo está funcionando en un modo multinodo
+
+//todo: sincronizar con los mensajes de sync únicamente durante los modos de funcionamiento y visualizar la sincronización con el led
+//todo: si se solicita un nodo para tomar parciales y está ocupado, ignorar mensaje (añadirlo al esquema)
+//todo: utilizar bits reservados del mensaje de link para verificar la versión del programa
 
 //todo: measure the tx time
 //todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main

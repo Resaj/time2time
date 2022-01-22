@@ -26,8 +26,9 @@
 #define MAX_ADC_VOLT      3300u // Maximum voltage allowed at the ADC input pin (millivolts)
 #define BATT_MONITOR_R1   47u   // First resistor (to battery) of the divisor to monitor the battery (kOhmios)
 #define BATT_MONITOR_R2   120u  // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
+#define BATT_VOLT_ALARM   3500u // Minimum battery voltage to active low battery warning (millivolts)
 
-#define ALPHA_LP_FILTER   4.0/5 // Quantity of the above battery measure to impact in the low pass filter
+#define ALPHA_LP_FILTER   4.0/5 // Quantity of the battery measures to impact in the low pass filter
 
 /**********************************************************************
  * Defines
@@ -118,6 +119,27 @@ void supply_task(void)
 {
   measure_batteryVoltage();
   check_battery_charger();
+}
+
+/**********************************************************************
+ * @brief Returns the voltage of the battery in millivolts
+ * 
+ * @return: voltage of the battery (millivolts)
+ */
+uint16_t get_battery_voltage(void)
+{
+  return g_batt_voltage;
+}
+
+/**********************************************************************
+ * @brief Compare the battery voltage to determine wether it is
+ * undervoltage or not.
+ * 
+ * @return: true if the battery is undervoltage; false if not
+ */
+bool is_battery_undervoltage(void)
+{
+  return (g_batt_voltage < BATT_VOLT_ALARM);
 }
 
 /**********************************************************************
