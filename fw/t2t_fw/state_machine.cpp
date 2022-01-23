@@ -888,6 +888,7 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
+    //todo: fill
   }
 
   /* General function for the RGB led control */

@@ -234,6 +234,22 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
 }
 
 /**********************************************************************
+ * @brief Sends an ESPNow message to link or maintain the communication
+ * with another node
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @param ackExpected: requires or not an ACK for the message
+ */
+void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected)
+{
+  s_espnow_link_msg msg;
+  msg.type = (uint8_t)LINK_MSG;
+  msg.ackExpected = ackExpected ? 1u : 0u;
+  
+  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+/**********************************************************************
  * Global functions
  *********************************************************************/
 
@@ -279,22 +295,6 @@ void espnow_comm_init(void)
 bool isThisTheMainNode(void)
 {
   return (thisNode == mainNode);
-}
-
-/**********************************************************************
- * @brief Sends an ESPNow message to link or maintain the communication
- * with another node
- * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
- * @param ackExpected: requires or not an ACK for the message
- */
-void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected)
-{
-  s_espnow_link_msg msg;
-  msg.type = (uint8_t)LINK_MSG;
-  msg.ackExpected = ackExpected ? 1u : 0u;
-  
-  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
 /**********************************************************************
@@ -413,10 +413,6 @@ void espnow_task(void)
   };
 
   uint32_t t_now = 0;
-  static e_comm_state comm_state = INIT_LINK;
-  static uint32_t lastInitLinkAttempt_ms = 0;
-  static uint32_t lastLinkMsgTx_ms = 0;
-  static uint8_t link_attempts = 0;
   
   // Check incoming messages
   if(nextMsgBuff2write != nextMsgBuff2read)
@@ -483,79 +479,40 @@ void espnow_task(void)
     nextMsgBuff2read = nextMsgBuff2read % (sizeof(rxBuffer)/sizeof(s_rxBuffer));
   }
 
-  // State machine to maintain the communication alive with the other nodes
-  switch (comm_state)
+  // Check the communication with the other nodes is alive in case that this is the main node
+  if(thisNode == mainNode)
   {
-    case INIT_LINK:
-      /* substate actions */
-      t_now = get_currentTimeMs();
-      if(t_now - lastInitLinkAttempt_ms >= 50)
+    t_now = get_currentTimeMs();
+  
+    for(uint8_t index=0; index<nNodes; index++)
+    {
+      if(&t2t_node[index] != thisNode)
       {
-        lastInitLinkAttempt_ms = t_now;
-        link_attempts++;
-
-        for(uint8_t index=0; index<nNodes; index++)
+        // When this node is waiting orders in the main menu, send link periodical messages
+        if(thisNode->nextNode == NULL && (t2t_node[index].linked || t_now < 4500))
         {
-          if(thisNode != &t2t_node[index] && !t2t_node[index].linked)
-            sendESPNowLinkMsg(index, true);
-        }
-      }
-        
-      /* test substate changes */
-      uint8_t linkedNodes[8];
-      if(link_attempts >= 3 || getLinkedNodes(linkedNodes) >= (nNodes-1))
-        comm_state = STANDBY;
-      break;
-
-    case STANDBY:
-      /* substate actions */
-      t_now = get_currentTimeMs();
-
-      // If no link message has been received from a remote node after 3 seconds, mark it as not linked
-      for(uint8_t index=0; index<nNodes; index++)
-      {
-        if(t_now - t2t_node[index].lastRxTime_ms > 3000 && t2t_node[index].linked)
-          t2t_node[index].linked = false;
-      }
-
-      // Send periodic link messages to the linked nodes every 2.5 seconds to maintain the communication alive
-      if(t_now - lastLinkMsgTx_ms >= 2500)
-      {
-        lastLinkMsgTx_ms = t_now;
-        
-        for(uint8_t index=0; index<nNodes; index++)
-        {
-          if(thisNode != &t2t_node[index] && t2t_node[index].linked)
+          if(t_now - t2t_node[index].lastRxTime_ms > 4500)
+            t2t_node[index].linked = false;
+          else if(t_now - t2t_node[index].lastTxTime_ms > 2000)
             sendESPNowLinkMsg(index, false);
         }
+        
+        // When this node is working in a mode with multiple nodes, send link messages if there is no communication the last 2 seconds
+        else if(thisNode->nextNode != NULL && t2t_node[index].prevNode != NULL)
+        {
+          if(t_now - t2t_node[index].lastRxTime_ms > 4500)
+            t2t_node[index].linked = false;
+          else if(t_now - t2t_node[index].lastRxTime_ms > 2000)
+            sendESPNowLinkMsg(index, true); // Request ACK. The secondary node won't answer with link messages if it's not required
+        }
       }
-
-      /* test substate changes */
-      
-      break;
-
-    default:
-      break;
+    }
   }
 }
 
 
-  // Check the communication with the other nodes is alive
-//  t_now = get_currentTimeMs();
-//
-//  for(uint8_t index=0; index<nNodes; index++)
-//  {
-//    // If no link message has been received from a remote node after 3 seconds, mark it as not linked
-//    if(t_now - t2t_node[index].lastRxTime_ms > 3000 && t2t_node[index].linked)
-//      t2t_node[index].linked = false;
-//    else if(thisNode != &t2t_node[index] &&
-//            este nodo es master &&
-//            t2t_node[index].linked &&
-//            t_now - t2t_node[index].lastTxTime_ms >= 2500 &&
-//      sendESPNowLinkMsg(index, false);
-//  }
-//todo: extraer la parte de link periódico a una función que se llame desde la tarea de ESP y máquina de estados
-//todo: sincronizar con los mensajes de link únicamente durante los modos de funcionamiento y visualizar la sincronización con el led
+//todo: llamar a una función de este módulo desde la máquina de estados para saber si todos los links están enlazados o hay error y tiene que salir del modo multinodo
+//todo: sincronizar parpadeo de los leds durante los modos de funcionamiento (poner parpadeo sinusoidal para saber que está funcionando en modo multinodo)
 
 //todo: si se solicita un nodo para tomar parciales y está ocupado, ignorar mensaje (añadirlo al esquema)
 //todo: utilizar bits reservados del mensaje de link para verificar la versión del programa

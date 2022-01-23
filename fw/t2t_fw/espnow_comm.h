@@ -35,7 +35,6 @@
 
 void espnow_comm_init(void);
 bool isThisTheMainNode(void);
-void sendESPNowLinkMsg(uint8_t nodeAddr, bool ask4Ack);
 void sendESPNowModeMsg(uint8_t nodeAddr, uint8_t func_mode, bool isRxNodeUsed);
 void sendESPNowDetectionMsg(uint8_t nodeAddr);
 void sendESPNowLowBattMsg(uint8_t nodeAddr, bool battLow_flag, uint16_t battVoltage);
