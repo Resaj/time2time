@@ -27,17 +27,19 @@
  *********************************************************************/
 
 typedef struct s_t2t_node {
-  uint8_t    *MACAddr;          // MAC address of the ESP node
-  bool       linked;            // Linked flag
-  uint32_t   lastLinkMsgRx_ms;  // Last time that a link message has been received from the remote node
-  s_t2t_node *prevNode;         // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
-  s_t2t_node *nextNode;         // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  uint8_t     *MACAddr;       // MAC address of the ESP node
+  bool        linked;         // Linked flag
+  uint32_t    lastTxTime_ms;  // Last time that a message has been transmitted to the remote node
+  uint32_t    lastRxTime_ms;  // Last time that a message has been received from the remote node
+  s_t2t_node  *prevNode;      // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  s_t2t_node  *nextNode;      // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
 } s_t2t_node;
 
 typedef struct {
   uint8_t nodeAddr  : 4;
   uint8_t msgLength : 4;
   uint8_t msg[3];
+  uint32_t rxTime;
 } s_rxBuffer;
 
 typedef struct {
@@ -46,17 +48,10 @@ typedef struct {
 } s_espnow_default_msg;
 
 typedef struct {
-  uint8_t type      : 3;
-  uint8_t nodeAddr  : 3;  // Node address (0-7). Defined by the jumpers in the PCB
-  uint8_t ask4Addr  : 1;  // Ask for the nodeAddr of the other node. 1 = yes; 0 = no
-  uint8_t reserved  : 1;
-} s_espnow_link_msg;
-
-typedef struct {
   uint8_t type        : 3;
   uint8_t ackExpected : 1;  // Waiting for an ACK. 1 = true; 0 = false
   uint8_t reserved    : 4;
-} s_espnow_sync_msg;
+} s_espnow_link_msg;
 
 typedef struct {
   uint8_t type      : 3;
@@ -88,7 +83,6 @@ typedef struct {
 
 typedef enum {
   LINK_MSG,
-  SYNC_MSG,
   MODE_MSG,
   DETECTION_MSG,
   TIME_MSG,
@@ -100,13 +94,13 @@ typedef enum {
  *********************************************************************/
 
 const uint8_t nNodes = sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); // Number of nodes available in the MAC list
-s_t2t_node t2t_node[nNodes]; // Matrix to store the information of the nodes. Up to 8 nodes
-s_t2t_node *thisNode = NULL; // Pointer to the node position at t2t_node
-s_t2t_node *mainNode = NULL; // Pointer to the main node position at t2t_node
-                             // Determines the node that manages the total times and the functionament mode
-                             // It it set when selecting the functionament mode.
-uint8_t thisNodeAddr;        // Node address (0-7). Defined by the jumpers in the PCB
-s_rxBuffer rxBuffer[8];      // Cyclic buffer to store the received messages
+s_t2t_node t2t_node[nNodes];    // Matrix to store the information of the nodes. Up to 8 nodes
+s_t2t_node *thisNode = NULL;    // Pointer to the node position at t2t_node
+s_t2t_node *mainNode = NULL;    // Pointer to the main node position at t2t_node
+                                // Determines the node that manages the total times and the functionament mode
+                                // It it set when selecting the functionament mode.
+uint8_t thisNodeAddr;           // Node address (0-7). Defined by the jumpers in the PCB
+s_rxBuffer rxBuffer[8];         // Cyclic buffer to store the received messages
 uint8_t nextMsgBuff2write = 0;  // Next byte to write in the rx buffer
 uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
 
@@ -156,6 +150,22 @@ int8_t isMacAddressListed(uint8_t *mac)
 }
 
 /**********************************************************************
+ * @brief Initialyze the data of the specified node in the s_t2t_node
+ * struct
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ */
+void init_node_struct(uint8_t nodeAddress)
+{
+  t2t_node[nodeAddress].MACAddr = MyMACAddrList[nodeAddress];
+  t2t_node[nodeAddress].linked = false;
+  t2t_node[nodeAddress].prevNode = NULL;
+  t2t_node[nodeAddress].nextNode = NULL;
+  t2t_node[nodeAddress].lastTxTime_ms = 0;
+  t2t_node[nodeAddress].lastRxTime_ms = 0;
+}
+
+/**********************************************************************
  * @brief ESPNow node configuration. This function reads the node
  * addresses and returns wether or not the node is in the MAC address
  * list.
@@ -183,12 +193,7 @@ uint8_t config_node(void)
   else if(thisNodeAddr != pos)
     return -2;
 
-  t2t_node[thisNodeAddr].MACAddr = MyMACAddrList[pos];
-  t2t_node[thisNodeAddr].linked = false;
-  t2t_node[thisNodeAddr].lastLinkMsgRx_ms = 0;
-  t2t_node[thisNodeAddr].prevNode = NULL;
-  t2t_node[thisNodeAddr].nextNode = NULL;
-
+  init_node_struct(thisNodeAddr);
 
   thisNode = &t2t_node[thisNodeAddr];
   mainNode = &t2t_node[thisNodeAddr];
@@ -197,10 +202,12 @@ uint8_t config_node(void)
 }
 
 /**********************************************************************
- * @brief Handler executed when there is a ESPNow transmission. For now
- * it does nothing.
+ * @brief Handler executed when there is a ESPNow transmission
  */
 void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state) {
+  int8_t posNodeInList = isMacAddressListed((uint8_t *)MAC_Addr);
+  if(posNodeInList >= 0)
+    t2t_node[posNodeInList].lastTxTime_ms = get_currentTimeMs(); // Save tx time
 }
 
 /**********************************************************************
@@ -209,13 +216,15 @@ void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state) {
  */
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len)
 {
+  int32_t t_now = get_currentTimeMs();
   int8_t posNodeInList = isMacAddressListed((uint8_t *)MAC_Addr);
 
   if(posNodeInList != -1)
   {
+    // Save incoming message in the buffer
     rxBuffer[nextMsgBuff2write].nodeAddr = posNodeInList;
     rxBuffer[nextMsgBuff2write].msgLength = len;
-    
+    rxBuffer[nextMsgBuff2write].rxTime = t_now;
     for(int8_t index=0; index<len; index++)
       rxBuffer[nextMsgBuff2write].msg[index] = receivedData[index];
       
@@ -251,6 +260,7 @@ void espnow_comm_init(void)
   {
     if(index != thisNodeAddr)
     {
+      init_node_struct(index);
       esp_now_peer_info_t peerInfo = {};
       memcpy(peerInfo.peer_addr, MyMACAddrList[index], 6);
       peerInfo.channel = 0;
@@ -272,19 +282,18 @@ bool isThisTheMainNode(void)
 }
 
 /**********************************************************************
- * @brief Sends an ESPNow message to link to another node.
+ * @brief Sends an ESPNow message to link or maintain the communication
+ * with another node
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
- * @param ask4Addr: the transmitter requires or not the address of the
- *                  other node
+ * @param ackExpected: requires or not an ACK for the message
  */
-void sendESPNowLinkMsg(uint8_t nodeAddress, bool ask4Addr)
+void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected)
 {
   s_espnow_link_msg msg;
   msg.type = (uint8_t)LINK_MSG;
-  msg.nodeAddr = thisNodeAddr;
-  msg.ask4Addr = ask4Addr ? 1u : 0u;
-
+  msg.ackExpected = ackExpected ? 1u : 0u;
+  
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
@@ -404,9 +413,9 @@ void espnow_task(void)
   };
 
   uint32_t t_now = 0;
+  static e_comm_state comm_state = INIT_LINK;
   static uint32_t lastInitLinkAttempt_ms = 0;
   static uint32_t lastLinkMsgTx_ms = 0;
-  static e_comm_state comm_state = INIT_LINK;
   static uint8_t link_attempts = 0;
   
   // Check incoming messages
@@ -420,35 +429,20 @@ void espnow_task(void)
     nodeAddress = rxBuffer[nextMsgBuff2read].nodeAddr;
     msgLength = rxBuffer[nextMsgBuff2read].msgLength;
     memcpy(&defaultMsg, rxBuffer[nextMsgBuff2read].msg, 1);
+    
+    t2t_node[nodeAddress].linked = true;
+    t2t_node[nodeAddress].lastRxTime_ms = rxBuffer[nextMsgBuff2read].rxTime;
 
     switch(defaultMsg.type)
     {
       case LINK_MSG:
         s_espnow_link_msg msg_link;
         memcpy(&msg_link, rxBuffer[nextMsgBuff2read].msg, msgLength);
-
-        // If the address of the remote node is not linked, register it and initialyze its structure
-        if(t2t_node[nodeAddress].linked == false)
-        {
-          t2t_node[nodeAddress].MACAddr = MyMACAddrList[nodeAddress];
-          t2t_node[nodeAddress].linked = true;
-          t2t_node[nodeAddress].prevNode = NULL;
-          t2t_node[nodeAddress].nextNode = NULL;
-        }
-        t2t_node[nodeAddress].lastLinkMsgRx_ms = get_currentTimeMs();
         
-        if(msg_link.ask4Addr) // If the remote node asks for the address of this node, send it
+        if(msg_link.ackExpected) // If the remote node asks for an ACK, send a link msg without asking for another ACK
           sendESPNowLinkMsg(nodeAddress, false);
         break;
 
-      case SYNC_MSG:
-        s_espnow_sync_msg msg_sync;
-        memcpy(&msg_sync, rxBuffer[nextMsgBuff2read].msg, msgLength);
-
-        //todo: fill
-      
-        break;
-        
       case MODE_MSG:
         s_espnow_mode_msg msg_mode;
         memcpy(&msg_mode, rxBuffer[nextMsgBuff2read].msg, msgLength);
@@ -489,7 +483,7 @@ void espnow_task(void)
     nextMsgBuff2read = nextMsgBuff2read % (sizeof(rxBuffer)/sizeof(s_rxBuffer));
   }
 
-  // Tx state machine
+  // State machine to maintain the communication alive with the other nodes
   switch (comm_state)
   {
     case INIT_LINK:
@@ -509,9 +503,7 @@ void espnow_task(void)
         
       /* test substate changes */
       uint8_t linkedNodes[8];
-      if(link_attempts >= 3)
-        comm_state = STANDBY;
-      else if(getLinkedNodes(linkedNodes) >= (nNodes-1))
+      if(link_attempts >= 3 || getLinkedNodes(linkedNodes) >= (nNodes-1))
         comm_state = STANDBY;
       break;
 
@@ -522,7 +514,7 @@ void espnow_task(void)
       // If no link message has been received from a remote node after 3 seconds, mark it as not linked
       for(uint8_t index=0; index<nNodes; index++)
       {
-        if(t_now - t2t_node[index].lastLinkMsgRx_ms > 3000 && t2t_node[index].linked)
+        if(t_now - t2t_node[index].lastRxTime_ms > 3000 && t2t_node[index].linked)
           t2t_node[index].linked = false;
       }
 
@@ -542,16 +534,29 @@ void espnow_task(void)
       
       break;
 
-      default:
-        break;
+    default:
+      break;
   }
 }
 
-//todo: fusionar los mensajes de link y sync. Quitar node address y ask for address y poner ask for ACK.
-//todo: Añadir a s_rxBuffer una variable de tiempo para guardar el momento de Rx del mensaje
-//todo: Añadir a s_t2t_node una variable de si el nodo está funcionando en un modo multinodo
 
-//todo: sincronizar con los mensajes de sync únicamente durante los modos de funcionamiento y visualizar la sincronización con el led
+  // Check the communication with the other nodes is alive
+//  t_now = get_currentTimeMs();
+//
+//  for(uint8_t index=0; index<nNodes; index++)
+//  {
+//    // If no link message has been received from a remote node after 3 seconds, mark it as not linked
+//    if(t_now - t2t_node[index].lastRxTime_ms > 3000 && t2t_node[index].linked)
+//      t2t_node[index].linked = false;
+//    else if(thisNode != &t2t_node[index] &&
+//            este nodo es master &&
+//            t2t_node[index].linked &&
+//            t_now - t2t_node[index].lastTxTime_ms >= 2500 &&
+//      sendESPNowLinkMsg(index, false);
+//  }
+//todo: extraer la parte de link periódico a una función que se llame desde la tarea de ESP y máquina de estados
+//todo: sincronizar con los mensajes de link únicamente durante los modos de funcionamiento y visualizar la sincronización con el led
+
 //todo: si se solicita un nodo para tomar parciales y está ocupado, ignorar mensaje (añadirlo al esquema)
 //todo: utilizar bits reservados del mensaje de link para verificar la versión del programa
 
