@@ -783,6 +783,37 @@ void set_led_from_diags(void)
 }
 
 /**********************************************************************
+ * @brief Check if there is a request to join a multi-node mode and
+ * decides what to do. In the case of acceptance of the request, this
+ * function prepares the nodes to communicate themselves.
+ */
+void check_multinode_request(void)
+{
+  for(uint8_t node=0; node<getNumberOfNodes(); node++)
+  {
+    int8_t request = isAnyModeRequest(node);
+    switch(request)
+    {
+      case -1:
+        // Do nothing
+        break;
+        
+      case -2:
+        //todo: Petición aceptada
+        break;
+        
+      case -3:
+        //todo: Liberar nodo
+        break;
+        
+      default:
+        //todo: Nodo requerido para entrar en el modo indicado
+        break;
+    }
+  }
+}
+
+/**********************************************************************
  * @brief Go-to-sleep function. The node goes to sleep and the
  * peripherals are disabled to avoid conmsumption and let a faster
  * charge of the battery.
@@ -830,6 +861,7 @@ void state_machine_task(void)
 
       case MAIN_MENU:
         /* state actions */
+        check_multinode_request();
 
         /* test state changes */
         if(get_button_state(BUTTON_A))

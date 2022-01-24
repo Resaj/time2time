@@ -56,7 +56,8 @@ typedef struct {
 typedef struct {
   uint8_t type      : 3;
   uint8_t work_mode : 3;  // Working mode (0-7)
-  uint8_t reserved  : 2;
+  uint8_t request   : 1;  // Request from main (1), answer to accept from secondary (0) or release node from main (0)
+  uint8_t reserved  : 1;
 } s_espnow_mode_msg;
 
 typedef struct {
@@ -103,6 +104,7 @@ uint8_t thisNodeAddr;           // Node address (0-7). Defined by the jumpers in
 s_rxBuffer rxBuffer[8];         // Cyclic buffer to store the received messages
 uint8_t nextMsgBuff2write = 0;  // Next byte to write in the rx buffer
 uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
+int8_t flag_modeReq[nNodes];    // Variable to save the mode message request. >=0 indicates a mode; -1 is nothing; -2 is ACK to join the mode; -3 is release node
 
 /**********************************************************************
  * Local functions
@@ -151,11 +153,11 @@ int8_t isMacAddressListed(uint8_t *mac)
 
 /**********************************************************************
  * @brief Initialyze the data of the specified node in the s_t2t_node
- * struct
+ * struct and mode request buffer
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
  */
-void init_node_struct(uint8_t nodeAddress)
+void init_node_data(uint8_t nodeAddress)
 {
   t2t_node[nodeAddress].MACAddr = MyMACAddrList[nodeAddress];
   t2t_node[nodeAddress].linked = false;
@@ -163,6 +165,8 @@ void init_node_struct(uint8_t nodeAddress)
   t2t_node[nodeAddress].nextNode = NULL;
   t2t_node[nodeAddress].lastTxTime_ms = 0;
   t2t_node[nodeAddress].lastRxTime_ms = 0;
+
+  flag_modeReq[nodeAddress] = -1;
 }
 
 /**********************************************************************
@@ -193,7 +197,7 @@ uint8_t config_node(void)
   else if(thisNodeAddr != pos)
     return -2;
 
-  init_node_struct(thisNodeAddr);
+  init_node_data(thisNodeAddr);
 
   thisNode = &t2t_node[thisNodeAddr];
   mainNode = &t2t_node[thisNodeAddr];
@@ -276,7 +280,7 @@ void espnow_comm_init(void)
   {
     if(index != thisNodeAddr)
     {
-      init_node_struct(index);
+      init_node_data(index);
       esp_now_peer_info_t peerInfo = {};
       memcpy(peerInfo.peer_addr, MyMACAddrList[index], 6);
       peerInfo.channel = 0;
@@ -379,6 +383,16 @@ bool getNcheckMACAddr(char macAddr[18])
 }
 
 /**********************************************************************
+ * @brief Returns the number of listed nodes
+ * 
+ * @return: number of listed nodes. Range: [0..7]
+ */
+uint8_t getNumberOfNodes(void)
+{
+  return nNodes;
+}
+
+/**********************************************************************
  * @brief Returns the amount of linked nodes and saves in the array
  * passed as reference which their are.
  * 
@@ -399,6 +413,24 @@ uint8_t getLinkedNodes(uint8_t *nodes)
   }
 
   return linkedNodes;
+}
+
+/**********************************************************************
+ * @brief Check if there is any change in the working mode flag because
+ * of a remote mode message
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @return: >=0 indicates a mode; -1 is nothing; -2 is ACK to join the
+ *          mode; -3 is release node
+ */
+int8_t isAnyModeRequest(uint8_t nodeAddress)
+{
+  if(thisNode == &t2t_node[nodeAddress])
+    return -1;
+
+  int8_t request = flag_modeReq[nodeAddress];
+  flag_modeReq[nodeAddress] = -1; // Reset flag
+  return request;
 }
 
 /**********************************************************************
@@ -443,7 +475,18 @@ void espnow_task(void)
         s_espnow_mode_msg msg_mode;
         memcpy(&msg_mode, rxBuffer[nextMsgBuff2read].msg, msgLength);
 
-        //todo: fill
+        if(msg_mode.request)
+        {
+          if(thisNode == mainNode)
+            flag_modeReq[nodeAddress] = msg_mode.work_mode; // Request from the future main node to join the working mode
+        }
+        else // msg_mode.request == 0
+        {
+          if(thisNode == mainNode)
+            flag_modeReq[nodeAddress] = -2; // ACK from the secondary node to accept the main node request
+          else // This is a secondary node
+            flag_modeReq[nodeAddress] = -3; // Request from main node to release this node from the multi-node working mode
+        }
       
         break;
         
@@ -510,15 +553,14 @@ void espnow_task(void)
   }
 }
 
-
-//todo: llamar a una función de este módulo desde la máquina de estados para saber si todos los links están enlazados o hay error y tiene que salir del modo multinodo
+//todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
+//todo: si un nodo está ocupado en un modo de funcionamiento, no devuelve mensajes de link ni contesta a los nodos que no estén funcionando en conjunto con él (añadirlo al esquema)
+//todo: if the node is not the main, but it's selected for the mode, set "mainNode" with the main
 //todo: sincronizar parpadeo de los leds durante los modos de funcionamiento (poner parpadeo sinusoidal para saber que está funcionando en modo multinodo)
-
-//todo: si se solicita un nodo para tomar parciales y está ocupado, ignorar mensaje (añadirlo al esquema)
-//todo: utilizar bits reservados del mensaje de link para verificar la versión del programa
+        //t = 0 en main al enviar el mensaje de modo
+        //t = t_now - t_lastMsgRxFromMainNode en el nodo secundario al enviar el mensaje de modo aceptando enlace
+//todo: llamar a una función de este módulo desde la máquina de estados para saber si todos los links están enlazados o hay error y tiene que salir del modo multinodo
+//todo: when exit from the mode, release the nodes sending a mode message with request=0
 
 //todo: measure the tx time
-//todo: choose the nodes to use (with nodeAddr) when selecting the mode. Set prev/nextNode in the main
-//todo: if the main node enters in a multiple-node mode, get the required nodes out from the state their are in
-//todo: if the node is not the main, but it's selected for the mode, set "mainNode" with the main
-//todo: when exit from the mode, release the nodes sending a message with isRxNodeUsed = 0
+//todo: utilizar bits reservados del mensaje de link para verificar la versión del programa
