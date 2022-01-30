@@ -45,6 +45,14 @@ uint16_t g_batt_voltage = 0; // millivolts
 e_batt_charger_diag batt_charger_diag = NO_INPUT_POWER;
 
 /**********************************************************************
+ * Local functions declarations
+ *********************************************************************/
+
+uint16_t read_batteryVoltage(void);
+void measure_batteryVoltage(void);
+void check_battery_charger(void);
+
+/**********************************************************************
  * Local functions
  *********************************************************************/
 

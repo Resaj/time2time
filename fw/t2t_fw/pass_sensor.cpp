@@ -34,14 +34,20 @@
 portMUX_TYPE sensor_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for the interruption
 
 /**********************************************************************
- * Global functions
+ * Global variables
  *********************************************************************/
 
 bool sensor_interrupt_flag = false;
 uint32_t time_detection = 0;
 
 /**********************************************************************
- * Global functions
+ * Local functions declarations
+ *********************************************************************/
+
+void IRAM_ATTR sensor_isr(void);
+
+/**********************************************************************
+ * Local functions
  *********************************************************************/
 
 /**********************************************************************
@@ -60,6 +66,10 @@ void IRAM_ATTR sensor_isr(void)
   
   portEXIT_CRITICAL_ISR(&sensor_critical_zone);
 }
+
+/**********************************************************************
+ * Global functions
+ *********************************************************************/
 
 /**********************************************************************
  * @brief Release sensor detection. It is called once the program has 

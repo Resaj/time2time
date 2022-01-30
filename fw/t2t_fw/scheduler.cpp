@@ -51,6 +51,16 @@ portMUX_TYPE scheduler_critical_zone = portMUX_INITIALIZER_UNLOCKED;  // Needed 
 uint8_t interruptCounter;
 
 /**********************************************************************
+ * Local functions declarations
+ *********************************************************************/
+
+void IRAM_ATTR scheduler_isr(void);
+void scheduler_init(void);
+void tasks_10ms(void);
+void tasks_50ms(void);
+void tasks_500ms(void);
+
+/**********************************************************************
  * Local functions
  *********************************************************************/
 

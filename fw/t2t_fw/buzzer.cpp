@@ -64,6 +64,14 @@ uint8_t buzzer_state_actual_index = 0;
 uint8_t buzzer_state_next_empty_index = 0;
 
 /**********************************************************************
+ * Local function declarations
+ *********************************************************************/
+
+void buzzer_pwm_set(uint8_t state);
+void add_buzzer_state(e_buzzer_state state);
+uint8_t do_buzzer_task(void);
+
+/**********************************************************************
  * Local functions
  *********************************************************************/
 

@@ -36,12 +36,18 @@ enum program_state {
   INIT_STATE,
   MAIN_MENU,
   SET_NUM_LAPS,
+  SELECT_END_NODE,
   RUN_MODE
 };
 
 enum program_substate {
   INIT_SUBSTATE,
+  SHOW_LINKED_NODE,
+  WAIT_FOR_ACTION,
+  SEND_MODE_REQUEST,
+  WAIT_FOR_CONFIRMATION,
   WAIT_FOR_LAPS_SELECTION,
+  WAIT_FOR_NODE_SELECTION,
   WAIT_FOR_START,
   SHOW_TIME_WITHOUT_DETECTION,
   WAIT_FOR_DETECTION,
@@ -61,6 +67,12 @@ enum mode2run {
   ONLY_CHARGE
 };
 
+enum nodeSelectionStatus {
+  ERROR_WHILE_SELECTING = -1,
+  SELECTION_IN_PROGRESS = 0,
+  NODE_SELECTED = 1
+};
+
 typedef void (*function)(void);
 
 typedef struct {
@@ -77,12 +89,14 @@ typedef struct {
 
 void show_main_menu(uint8_t group_num);
 void normal_lap_time_mode(void);
-uint16_t x_laps_time_mode_laps_selection(void);
+bool x_laps_time_mode_laps_selection(void);
 void x_laps_time_mode(void);
+int8_t end_node_selection(mode2run t2t_mode);
 void start_stop_mode(void);
 void toast_mode(void);
 void show_t2t_info(void);
 void set_led_from_diags(void);
+int8_t check_multinode_request(void);
 void go_to_sleep(void);
 
 /**********************************************************************
@@ -99,7 +113,7 @@ s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , func                 , next_menu_state , first_subtate */
   { NORMAL_LAP_TIME_MODE , "Normal lap time"     , normal_lap_time_mode , RUN_MODE        , INIT_SUBSTATE },
   { X_LAPS_TIME_MODE     , "X laps time"         , x_laps_time_mode     , SET_NUM_LAPS    , INIT_SUBSTATE },
-  { START_STOP_MODE      , "Start/Stop (2x t2t)" , start_stop_mode      , RUN_MODE        , INIT_SUBSTATE },
+  { START_STOP_MODE      , "Start/Stop (2x t2t)" , start_stop_mode      , SELECT_END_NODE , INIT_SUBSTATE },
   { TOAST_MODE           , "Get toast time"      , toast_mode           , RUN_MODE        , INIT_SUBSTATE },
   { SHOW_T2T_INFO        , "Time2time info"      , show_t2t_info        , RUN_MODE        , INIT_SUBSTATE },
   { ONLY_CHARGE          , "Only charge"         , go_to_sleep          , RUN_MODE        , INIT_SUBSTATE }
@@ -263,7 +277,7 @@ void normal_lap_time_mode(void)
  * 
  * @returns true if the number of laps has been selected; false if not
  */
-uint16_t x_laps_time_mode_laps_selection(void)
+bool x_laps_time_mode_laps_selection(void)
 {
   static uint16_t target_laps_selection = x_time_mode_target_laps;
 
@@ -479,6 +493,158 @@ void x_laps_time_mode(void)
 }
 
 /**********************************************************************
+ * @brief Executes the selection of the end node for the multi-node
+ * modes. The start node is the one that has to select the end node
+ * 
+ * @param t2t_mode: mode to run after the end node selection
+ * @return: -1 if there was an error; 1 if the end node was selected;
+ *          0 if not
+ */
+int8_t end_node_selection(mode2run t2t_mode)
+{
+  static uint8_t linkedNodes[8]= {0};
+  static uint8_t numLinkedNodes = 0;
+  static uint8_t index4SelectedNode = 0;
+  static uint8_t numAttempts = 0;
+  static uint32_t t_last_mode_msg_sent = 0;
+  uint32_t t_now = 0;
+
+  static s_display_text text[] = {
+    /* text                 , pos_X , pos_Y , font          , aligment   */
+    { "Select the end node:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
+    { "A -> Previous"       , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
+    { "B -> OK"             , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
+    { "C -> Next"           , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
+    { ""                    , 90    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* state actions */
+      numLinkedNodes = getLinkedNodes(linkedNodes);
+      index4SelectedNode = 0;
+
+      /* test state changes */
+      substate = SHOW_LINKED_NODE;
+      break;
+        
+    case SHOW_LINKED_NODE:
+      /* substate actions */
+
+      /* test substate changes */
+      if(numLinkedNodes > 0)
+      {
+        sprintf(text[4].text, "%u", linkedNodes[index4SelectedNode]);
+        display_set_data(text, sizeof(text)/sizeof(s_display_text));        
+        substate = WAIT_FOR_NODE_SELECTION;
+      }
+      else
+      {
+        s_display_text text_error[] = {
+          /* text                  , pos_X , pos_Y , font      , aligment   */
+          { "Error! No node linked", 0     , 20    , MENU_FONT , ALIGN_LEFT },
+          { "Press C to return"    , 0     , 45    , MENU_FONT , ALIGN_LEFT },
+        };
+        display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+        substate = WAIT_FOR_ACTION;
+      }
+      break;
+
+    case WAIT_FOR_NODE_SELECTION:
+      /* substate actions */
+
+      /* test substate changes */
+      if(get_button_state(BUTTON_A))
+      {
+        if(index4SelectedNode > 0)
+        {
+          index4SelectedNode--;
+          substate = SHOW_LINKED_NODE;
+        }
+      }
+      else if(get_button_state(BUTTON_B))
+      {
+        if(isNodeLinked(linkedNodes[index4SelectedNode]))
+        {
+          numAttempts = 0;
+          substate = SEND_MODE_REQUEST;
+        }
+        else
+        {
+          s_display_text text_error[] = {
+            /* text               , pos_X , pos_Y , font      , aligment   */
+            { "Error!"            , 0     , 8     , MENU_FONT , ALIGN_LEFT },
+            { "Node not available", 0     , 20    , MENU_FONT , ALIGN_LEFT },
+            { "Press C to return" , 0     , 45    , MENU_FONT , ALIGN_LEFT },
+          };
+          display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+          substate = WAIT_FOR_ACTION;
+        }
+      }
+      else if(get_button_state(BUTTON_C))
+      {
+        if(index4SelectedNode < (numLinkedNodes-1))
+        {
+          index4SelectedNode++;;
+          substate = SHOW_LINKED_NODE;
+        }
+      }
+      break;
+
+    case WAIT_FOR_ACTION:
+      /* substate actions */
+
+      /* test substate changes */
+      if(get_button_state(BUTTON_C))
+        return ERROR_WHILE_SELECTING;
+      break;
+
+    case SEND_MODE_REQUEST:
+      /* substate actions */
+      numAttempts++;
+      t_last_mode_msg_sent = get_currentTimeMs();
+      sendESPNowModeMsg(linkedNodes[index4SelectedNode], t2t_mode, 1);
+
+      /* test substate changes */
+      substate = WAIT_FOR_CONFIRMATION;
+      break;
+
+    case WAIT_FOR_CONFIRMATION:
+      /* substate actions */
+      t_now = get_currentTimeMs();
+      
+      /* test substate changes */
+      if(MODE_REQUEST_ACCEPTED == isAnyModeRequest(linkedNodes[index4SelectedNode]))
+        substate = FINISHED;
+      else if(numAttempts < 3 && t_now - t_last_mode_msg_sent >= 50)
+        substate = SEND_MODE_REQUEST;
+      else if(numAttempts >= 3 && t_now - t_last_mode_msg_sent >= 50)
+      {
+        s_display_text text_error[] = {
+            /* text               , pos_X , pos_Y , font      , aligment   */
+            { "Error!"            , 0     , 8     , MENU_FONT , ALIGN_LEFT },
+            { "No answer received", 0     , 20    , MENU_FONT , ALIGN_LEFT },
+            { "Press C to return" , 0     , 45    , MENU_FONT , ALIGN_LEFT },
+          };
+        display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+        substate = WAIT_FOR_ACTION;
+      }
+      break;
+    
+    case FINISHED:
+      configNode4WorkingMode(&linkedNodes[index4SelectedNode], 1);
+      return NODE_SELECTED;
+      break;
+
+    default:
+      break;
+  }
+
+  return SELECTION_IN_PROGRESS;
+}
+
+/**********************************************************************
  * @brief Executes the start/stop time measurement mode and shows the 
  * total time spent on the circuit
  */
@@ -494,8 +660,6 @@ void start_stop_mode(void)
     {  ""                    , 20    , 30    , MENU_FONT , ALIGN_LEFT },
     {  ""                    , 20    , 45    , MENU_FONT , ALIGN_LEFT },
   };
-
-//  static s_espnow_msg msg = { moduleNumber, 0 };
 
   switch(substate)
   {
@@ -786,31 +950,24 @@ void set_led_from_diags(void)
  * @brief Check if there is a request to join a multi-node mode and
  * decides what to do. In the case of acceptance of the request, this
  * function prepares the nodes to communicate themselves.
+ * 
+ * @return: >=0 indicates the mode to join into; -1 is nothing; -2 is
+ *          ACK to join the mode; -3 is release node
  */
-void check_multinode_request(void)
+int8_t check_multinode_request(void)
 {
   for(uint8_t node=0; node<getNumberOfNodes(); node++)
   {
     int8_t request = isAnyModeRequest(node);
-    switch(request)
+    if(request > 0)
     {
-      case -1:
-        // Do nothing
-        break;
-        
-      case -2:
-        //todo: Petición aceptada
-        break;
-        
-      case -3:
-        //todo: Liberar nodo
-        break;
-        
-      default:
-        //todo: Nodo requerido para entrar en el modo indicado
-        break;
+      sendESPNowModeMsg(node, request, 0);
+      configThisNodeAsSecondary(node);
+      return request;
     }
   }
+
+  return -1;
 }
 
 /**********************************************************************
@@ -845,6 +1002,7 @@ void state_machine_task(void)
   static program_state state = INIT_STATE;
   static mode2run t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
+  int8_t nodeSelectionStatus = 0;
 
   if(isThisTheMainNode()) // This node is not being controlled by another one
   {
@@ -861,10 +1019,13 @@ void state_machine_task(void)
 
       case MAIN_MENU:
         /* state actions */
-        check_multinode_request();
 
         /* test state changes */
-        if(get_button_state(BUTTON_A))
+        if(-1 < check_multinode_request()) // Mode request has been received
+        {
+          break;
+        }
+        else if(get_button_state(BUTTON_A))
         {
           t2t_mode = mode_data[menu_screen_num*2].time_mode;
           state = mode_data[menu_screen_num*2].next_menu_state;
@@ -884,9 +1045,8 @@ void state_machine_task(void)
           if(2 < sizeof(mode_data)/sizeof(s_mode_data))
           {
             menu_screen_num++;
-            if(menu_screen_num >= (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2)))
-              menu_screen_num = 0;
-            show_main_menu(menu_screen_num);
+            menu_screen_num = menu_screen_num % (uint8_t)(ceil(((float)sizeof(mode_data)/sizeof(s_mode_data))/2));
+            state = INIT_STATE;
           }
         }
         break;
@@ -902,6 +1062,20 @@ void state_machine_task(void)
         }
         break;
 
+      case SELECT_END_NODE:
+        /* state actions */
+        nodeSelectionStatus = end_node_selection(t2t_mode);
+
+        /* test state changes */
+        if(NODE_SELECTED == nodeSelectionStatus)
+        {
+          state = RUN_MODE;
+          substate = INIT_SUBSTATE;
+        }
+        else if(ERROR_WHILE_SELECTING == nodeSelectionStatus)
+          state = INIT_STATE;
+        break;
+
       case RUN_MODE:
         /* state actions */
         (*mode_data[t2t_mode].func)();
@@ -910,6 +1084,7 @@ void state_machine_task(void)
         if(get_button_state(BUTTON_C))
         {
           set_default_sensor_active_edge();
+          releaseWorkingModeComm();
           state = INIT_STATE;
         }
         break;
@@ -920,9 +1095,20 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
-    //todo: fill
+    if(MODE_REQUEST_RELEASE_NODE == isAnyModeRequestFromMain())
+    {
+      releaseNodeAfterWorkingMode(getThisNodeAddr());
+      state = INIT_STATE;
+    }
+    else
+    {
+      //todo: reportar detecciones y representar tiempos que mande el nodo principal
+    }
   }
 
   /* General function for the RGB led control */
   set_led_from_diags();
+
+  /* Clean mode flags to avoid reading old storaged requests */
+  clean_mode_flags();
 }

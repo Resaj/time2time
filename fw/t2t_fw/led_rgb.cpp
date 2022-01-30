@@ -82,6 +82,18 @@ s_led_mode led_mode = { NO_WAVE, RGB_WHITE, 0, MIN_BRIGHTNESS };
 bool update_led_status = false; // used to update the status when storage status changes
 
 /**********************************************************************
+ * Local functions declarations
+ *********************************************************************/
+
+void set_led(uint8_t pwm_channel_led, uint16_t brightness);
+void set_rgb_led(s_rgb_color rgb_color);
+void get_basic_color(e_rgb_color selected_color, s_rgb_color *rgb_color);
+void set_simple_brightness(s_rgb_color *rgb_color);
+void set_square_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period);
+void set_triangle_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period);
+void set_sinusoidal_wave_brightness(s_rgb_color *rgb_color, uint16_t t_period);
+
+/**********************************************************************
  * Local functions
  *********************************************************************/
 
