@@ -67,7 +67,7 @@ enum mode2run {
   ONLY_CHARGE
 };
 
-enum nodeSelectionStatus {
+enum nodeSelectionState {
   ERROR_WHILE_SELECTING = -1,
   SELECTION_IN_PROGRESS = 0,
   NODE_SELECTED = 1
@@ -91,12 +91,11 @@ void show_main_menu(uint8_t group_num);
 void normal_lap_time_mode(void);
 bool x_laps_time_mode_laps_selection(void);
 void x_laps_time_mode(void);
-int8_t end_node_selection(mode2run t2t_mode);
+nodeSelectionState end_node_selection(mode2run t2t_mode);
 void start_stop_mode(void);
 void toast_mode(void);
 void show_t2t_info(void);
 void set_led_from_diags(void);
-int8_t check_multinode_request(void);
 void go_to_sleep(void);
 
 /**********************************************************************
@@ -500,7 +499,7 @@ void x_laps_time_mode(void)
  * @return: -1 if there was an error; 1 if the end node was selected;
  *          0 if not
  */
-int8_t end_node_selection(mode2run t2t_mode)
+nodeSelectionState end_node_selection(mode2run t2t_mode)
 {
   static uint8_t linkedNodes[8]= {0};
   static uint8_t numLinkedNodes = 0;
@@ -615,7 +614,7 @@ int8_t end_node_selection(mode2run t2t_mode)
       t_now = get_currentTimeMs();
       
       /* test substate changes */
-      if(MODE_REQUEST_ACCEPTED == isAnyModeRequest(linkedNodes[index4SelectedNode]))
+      if(isAnyAcceptance(linkedNodes[index4SelectedNode]))
         substate = FINISHED;
       else if(numAttempts < 3 && t_now - t_last_mode_msg_sent >= 50)
         substate = SEND_MODE_REQUEST;
@@ -633,7 +632,7 @@ int8_t end_node_selection(mode2run t2t_mode)
       break;
     
     case FINISHED:
-      configNode4WorkingMode(&linkedNodes[index4SelectedNode], 1);
+      configNodes4WorkingMode(&linkedNodes[index4SelectedNode], 1);
       return NODE_SELECTED;
       break;
 
@@ -947,30 +946,6 @@ void set_led_from_diags(void)
 }
 
 /**********************************************************************
- * @brief Check if there is a request to join a multi-node mode and
- * decides what to do. In the case of acceptance of the request, this
- * function prepares the nodes to communicate themselves.
- * 
- * @return: >=0 indicates the mode to join into; -1 is nothing; -2 is
- *          ACK to join the mode; -3 is release node
- */
-int8_t check_multinode_request(void)
-{
-  for(uint8_t node=0; node<getNumberOfNodes(); node++)
-  {
-    int8_t request = isAnyModeRequest(node);
-    if(request > 0)
-    {
-      sendESPNowModeMsg(node, request, 0);
-      configThisNodeAsSecondary(node);
-      return request;
-    }
-  }
-
-  return -1;
-}
-
-/**********************************************************************
  * @brief Go-to-sleep function. The node goes to sleep and the
  * peripherals are disabled to avoid conmsumption and let a faster
  * charge of the battery.
@@ -1002,7 +977,8 @@ void state_machine_task(void)
   static program_state state = INIT_STATE;
   static mode2run t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
-  int8_t nodeSelectionStatus = 0;
+  nodeSelectionState nodeSelState;
+  int8_t mode_request = -1;
 
   if(isThisTheMainNode()) // This node is not being controlled by another one
   {
@@ -1019,10 +995,20 @@ void state_machine_task(void)
 
       case MAIN_MENU:
         /* state actions */
-
+        mode_request = checkNacceptJoinModeRequest();
+        
         /* test state changes */
-        if(-1 < check_multinode_request()) // Mode request has been received
+        if(-1 < mode_request) // Mode request has been received
         {
+          s_display_text text[] = {
+            /* Text             , pos_X , pos_Y , font      , aligment   */
+            {  "Secondary node" , 0     , 8     , MENU_FONT , ALIGN_LEFT  },
+            {  ""               , 0     , 20    , MENU_FONT , ALIGN_RIGHT }
+          };
+
+          sprintf(text[1].text, "Mode #%d", mode_request);
+          display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
           break;
         }
         else if(get_button_state(BUTTON_A))
@@ -1064,15 +1050,15 @@ void state_machine_task(void)
 
       case SELECT_END_NODE:
         /* state actions */
-        nodeSelectionStatus = end_node_selection(t2t_mode);
+        nodeSelState = end_node_selection(t2t_mode);
 
         /* test state changes */
-        if(NODE_SELECTED == nodeSelectionStatus)
+        if(NODE_SELECTED == nodeSelState)
         {
           state = RUN_MODE;
           substate = INIT_SUBSTATE;
         }
-        else if(ERROR_WHILE_SELECTING == nodeSelectionStatus)
+        else if(ERROR_WHILE_SELECTING == nodeSelState)
           state = INIT_STATE;
         break;
 
@@ -1095,9 +1081,9 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
-    if(MODE_REQUEST_RELEASE_NODE == isAnyModeRequestFromMain())
+    if(isAnyReleaseRequestFromMain())
     {
-      releaseNodeAfterWorkingMode(getThisNodeAddr());
+      releaseWorkingModeComm();
       state = INIT_STATE;
     }
     else

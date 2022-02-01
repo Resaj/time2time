@@ -27,13 +27,12 @@
  *********************************************************************/
 
 typedef struct s_t2t_node {
-  uint8_t     nodeAddress;    // Node address. Defined by the jumpers on the board, between 0 and 7
-  uint8_t     *MACAddr;       // MAC address of the ESP node
-  bool        linked;         // Linked flag
-  uint32_t    lastTxTime_ms;  // Last time that a message has been transmitted to the remote node
-  uint32_t    lastRxTime_ms;  // Last time that a message has been received from the remote node
-  s_t2t_node  *prevNode;      // Previous node in the circuit. It is calculated automaticaly when the functionament mode is selected
-  s_t2t_node  *nextNode;      // Next node in the circuit. It is calculated automaticaly when the functionament mode is selected
+  uint8_t   nodeAddress;    // Node address. Defined by the jumpers on the board, between 0 and 7
+  uint8_t   *MACAddr;       // MAC address of the ESP node
+  bool      linked;         // Linked flag
+  bool      working;        // Working flag. Indicates wether the node is being used in the working mode
+  uint32_t  lastTxTime_ms;  // Last time that a message has been transmitted to the remote node
+  uint32_t  lastRxTime_ms;  // Last time that a message has been received from the remote node
 } s_t2t_node;
 
 typedef struct {
@@ -91,18 +90,22 @@ typedef enum {
   LOWBATTERY_MSG
 } msg_type;
 
+/* Mode message requests */
+#define MODE_REQUEST_UNDEFINED    -1
+#define MODE_REQUEST_ACCEPTED     -2
+#define MODE_REQUEST_RELEASE_NODE -3
+
 /**********************************************************************
  * Local variables
  *********************************************************************/
 
-uint32_t t_origen = 0;          // Origin time to reference the initial linking and enable it again after leaving a working mode
+uint32_t t_origen_ms = 0;       // Origin time to reference the initial linking and enable it again after leaving a working mode
 const uint8_t nNodes = sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); // Number of nodes available in the MAC list
 s_t2t_node t2t_node[nNodes];    // Matrix to store the information of the nodes. Up to 8 nodes
 s_t2t_node *thisNode = NULL;    // Pointer to the node position at t2t_node
 s_t2t_node *mainNode = NULL;    // Pointer to the main node position at t2t_node
                                 // Determines the node that manages the total times and the functionament mode
                                 // It it set when selecting the functionament mode.
-uint8_t thisNodeAddr;           // Node address (0-7). Defined by the jumpers in the PCB
 s_rxBuffer rxBuffer[8];         // Cyclic buffer to store the received messages
 uint8_t nextMsgBuff2write = 0;  // Next byte to write in the rx buffer
 uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
@@ -176,8 +179,7 @@ void init_node_data(uint8_t nodeAddress)
   t2t_node[nodeAddress].nodeAddress = nodeAddress;
   t2t_node[nodeAddress].MACAddr = MyMACAddrList[nodeAddress];
   t2t_node[nodeAddress].linked = false;
-  t2t_node[nodeAddress].prevNode = NULL;
-  t2t_node[nodeAddress].nextNode = NULL;
+  t2t_node[nodeAddress].working = false;
   t2t_node[nodeAddress].lastTxTime_ms = 0;
   t2t_node[nodeAddress].lastRxTime_ms = 0;
 
@@ -195,6 +197,7 @@ void init_node_data(uint8_t nodeAddress)
  */
 uint8_t config_node(void)
 {
+  uint8_t thisNodeAddr = 0;
   uint8_t MACAddr[6];
   int8_t pos = -1;
   
@@ -294,7 +297,7 @@ void espnow_comm_init(void)
 
   for(uint8_t index=0; index<nNodes; index++)
   {
-    if(index != thisNodeAddr)
+    if(index != thisNode->nodeAddress)
     {
       init_node_data(index);
       esp_now_peer_info_t peerInfo = {};
@@ -308,6 +311,47 @@ void espnow_comm_init(void)
 }
 
 /**********************************************************************
+ * @brief Returns the number of listed nodes
+ * 
+ * @return: number of listed nodes. Range: [0..7]
+ */
+uint8_t getNumberOfNodes(void)
+{
+  return nNodes;
+}
+
+/**********************************************************************
+ * @brief Returns the number/address of this node.
+ * 
+ * @return: number of the node. Range [0..7]
+ */
+uint8_t getThisNodeAddr(void)
+{
+  return thisNode->nodeAddress;
+}
+
+/**********************************************************************
+ * @brief Returns the MAC address of this node if it is listed in the
+ * configuration.
+ * 
+ * @param macAddr: char array to store the MAC address
+ * @return: true is the MAC address has been listed; false if not
+ */
+bool getNcheckMACAddr(char macAddr[18])
+{
+  if(NULL != t2t_node[thisNode->nodeAddress].MACAddr)
+  {
+    WiFi.macAddress().toCharArray(macAddr, 18);
+    return true;
+  }
+  else
+  {
+    sprintf(macAddr, "MAC bad or not listed");
+    return false;
+  }
+}
+
+/**********************************************************************
  * @brief Returns wether or not this is the main node.
  * 
  * @return: true if this is the main node; false if not
@@ -315,6 +359,40 @@ void espnow_comm_init(void)
 bool isThisTheMainNode(void)
 {
   return (thisNode == mainNode);
+}
+
+/**********************************************************************
+ * @brief Returns the amount of linked nodes and saves in the array
+ * passed as reference which their are.
+ * 
+ * @return: number of linked nodes. Range: [0..total-1]. The actual
+ *          node can't be counted
+ */
+uint8_t getLinkedNodes(uint8_t *nodes)
+{
+  uint8_t linkedNodes = 0;
+  
+  for(uint8_t index=0; index<nNodes; index++)
+  {
+    if(isNodeLinked(index))
+    {
+      nodes[linkedNodes] = index;
+      linkedNodes++;
+    }
+  }
+
+  return linkedNodes;
+}
+
+/**********************************************************************
+ * @brief Return the linked state of a node
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @return: true if the node is linked; false if not
+ */
+bool isNodeLinked(uint8_t nodeAddress)
+{
+  return t2t_node[nodeAddress].linked;
 }
 
 /**********************************************************************
@@ -371,111 +449,59 @@ void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battV
 }
 
 /**********************************************************************
- * @brief Returns the number/address of this node.
+ * @brief Check if there is any request from a remote node to join a
+ * mode, accept it and reset the flag
  * 
- * @return: number of the node. Range [0..7]
+ * @return: >=0 indicates a mode requested; -1 is nothing
  */
-uint8_t getThisNodeAddr(void)
+int8_t checkNacceptJoinModeRequest(void)
 {
-  return thisNodeAddr;
-}
-
-/**********************************************************************
- * @brief Returns the MAC address of this node if it is listed in the
- * configuration.
- * 
- * @param macAddr: char array to store the MAC address
- * @return: true is the MAC address has been listed; false if not
- */
-bool getNcheckMACAddr(char macAddr[18])
-{
-  if(NULL != t2t_node[thisNodeAddr].MACAddr)
-  {
-    WiFi.macAddress().toCharArray(macAddr, 18);
-    return true;
-  }
-  else
-  {
-    sprintf(macAddr, "MAC bad or not listed");
-    return false;
-  }
-}
-
-/**********************************************************************
- * @brief Returns the number of listed nodes
- * 
- * @return: number of listed nodes. Range: [0..7]
- */
-uint8_t getNumberOfNodes(void)
-{
-  return nNodes;
-}
-
-/**********************************************************************
- * @brief Return the linked state of a node
- * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
- * @return: true if the node is linked; false if not
- */
-bool isNodeLinked(uint8_t nodeAddress)
-{
-  return t2t_node[nodeAddress].linked;
-}
-
-/**********************************************************************
- * @brief Returns the amount of linked nodes and saves in the array
- * passed as reference which their are.
- * 
- * @return: number of linked nodes. Range: [0..total-1]. The actual
- *          node can't be counted
- */
-uint8_t getLinkedNodes(uint8_t *nodes)
-{
-  uint8_t linkedNodes = 0;
-  
   for(uint8_t index=0; index<nNodes; index++)
   {
-    if(isNodeLinked(index))
+    if(thisNode == &t2t_node[index])
     {
-      nodes[linkedNodes] = index;
-      linkedNodes++;
+      int8_t request = flag_modeReq[index];
+      flag_modeReq[index] = MODE_REQUEST_UNDEFINED; // Reset flag
+      if(request >= 0)
+      {
+        mainNode = &t2t_node[index];
+        sendESPNowModeMsg(index, request, 0);
+        return request;
+      }
     }
   }
 
-  return linkedNodes;
+  return MODE_REQUEST_UNDEFINED;
 }
 
 /**********************************************************************
- * @brief Check if there is any change in the working mode flag because
- * of a remote mode message and reset the flag
+ * @brief Check if there is any acceptance of a remote node to join
+ * into a requested mode and reset the flag
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
- * @return: >=0 indicates a mode; -1 is nothing; -2 is ACK to join the
- *          mode; -3 is release node
+ * @return: true if there is an acceptance; false if not
  */
-int8_t isAnyModeRequest(uint8_t nodeAddress)
+bool isAnyAcceptance(uint8_t nodeAddress)
 {
   if(thisNode == &t2t_node[nodeAddress])
     return MODE_REQUEST_UNDEFINED;
 
   int8_t request = flag_modeReq[nodeAddress];
   flag_modeReq[nodeAddress] = MODE_REQUEST_UNDEFINED; // Reset flag
-  return request;
+  return (request == MODE_REQUEST_ACCEPTED);
 }
 
 /**********************************************************************
- * @brief Check if there is any change in the working mode flag of the
- * main node. This function is normaly used to check a possible release
- * message.
+ * @brief Check if there is any release request from the main node and
+ * reset the flag
  * 
- * @return: >=0 indicates a mode; -1 is nothing; -2 is ACK to join the
- *          mode; -3 is release node
+ * @return: true if there is a release request; false if not
  */
-uint8_t isAnyModeRequestFromMain(void)
+bool isAnyReleaseRequestFromMain(void)
 {
   int8_t request = flag_modeReq[mainNode->nodeAddress];
   flag_modeReq[mainNode->nodeAddress] = MODE_REQUEST_UNDEFINED; // Reset flag
-  return request;
+  return (request == MODE_REQUEST_RELEASE_NODE);
 }
 
 /**********************************************************************
@@ -490,30 +516,6 @@ void clean_mode_flags(void)
 }
 
 /**********************************************************************
- * @brief Check if there is any change in the working mode flag of the
- * main node. This function is normaly used to check a possible release
- * message.
- * 
- * @param remoteNodeList: pointer to a list that includes the addresses 
- *                        of the remote nodes to join the mode
- * @param numRemoteNodes: number of remote nodes to join the mode
- */
-void configNode4WorkingMode(uint8_t *remoteNodeList, uint8_t numRemoteNodes)
-{
-  if(numRemoteNodes == 0) // Uni-node mode
-  {
-    thisNode->nextNode = thisNode;
-  }
-  else // Multi-node mode
-  {
-    for(uint8_t index=0; index<numRemoteNodes; index++)
-    {
-      //todo: añadir cambios de prev y next de este nodo para modo multinodo
-    }
-  }
-}
-
-/**********************************************************************
  * @brief Configure this node as secondary to allow being control by
  * the main one
  * 
@@ -521,44 +523,44 @@ void configNode4WorkingMode(uint8_t *remoteNodeList, uint8_t numRemoteNodes)
  */
 void configThisNodeAsSecondary(uint8_t mainNodeAddress)
 {
+  thisNode->working = true;
   mainNode = &t2t_node[mainNodeAddress];
 }
 
 /**********************************************************************
- * @brief Release the node while leaving a working mode. This allows
- * the node to control itself again.
+ * @brief Configure this node (main) and the secondary nodes as working
+ * in a mode
  * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @param remoteNodeList: pointer to a list that includes the addresses 
+ *                        of the remote nodes to join the mode
+ * @param numRemoteNodes: number of remote nodes to join the mode
  */
-void releaseNodeAfterWorkingMode(uint8_t nodeAddress)
+void configNodes4WorkingMode(uint8_t *remoteNodeList, uint8_t numRemoteNodes)
 {
-  mainNode = thisNode;
-  thisNode->prevNode = NULL;
-  thisNode->nextNode = NULL;
-
-  t_origen = get_currentTimeMs(); // Allows link with other nodes after leaving a mode
+  thisNode->working = true;
+  for(uint8_t index=0; index<numRemoteNodes; index++)
+    t2t_node[remoteNodeList[index]].working = true;
 }
 
 /**********************************************************************
- * @brief Send a message to each node working with this one to release
- * them. This function is only called ont this node y the main one.
+ * @brief Release the node while leaving a working mode. This allows
+ * the node to control itself again. If this is the main node, send a
+ * message to each node working with this one to release them.
  */
 void releaseWorkingModeComm(void)
 {
-  s_t2t_node *p, *p_next;
-  p = mainNode->nextNode;
-  
-  while(p != NULL && p != mainNode)
+  for(uint8_t index=0; index<nNodes; index++)
   {
-    sendESPNowModeMsg(p->nodeAddress, 0, 0);
-    p_next = p->nextNode;
-    p->nextNode = NULL;
-    p->prevNode = NULL;
-    p = p_next;
+    if(t2t_node[index].working)
+    {
+      if(&t2t_node[index] != thisNode)
+        sendESPNowModeMsg(t2t_node[index].nodeAddress, 0, 0); // Send a message to release the remote node
+      t2t_node[index].working = false;
+    }
   }
 
-  mainNode->nextNode = NULL;
-  mainNode->prevNode = NULL;
+  mainNode = thisNode;
+  t_origen_ms = get_currentTimeMs(); // Allows link with other nodes after leaving a mode
 }
 
 /**********************************************************************
@@ -605,14 +607,14 @@ void espnow_task(void)
 
         if(msg_mode.request)
         {
-          if(thisNode == mainNode && thisNode->nextNode == NULL)
+          if(thisNode == mainNode)
             flag_modeReq[nodeAddress] = msg_mode.work_mode; // Request from a future main node to join the working mode
         }
         else // msg_mode.request == 0
         {
-          if(thisNode == mainNode && thisNode->nextNode == NULL)
+          if(thisNode == mainNode)
             flag_modeReq[nodeAddress] = MODE_REQUEST_ACCEPTED; // ACK from the secondary node to accept the main node request
-          else if(thisNode->prevNode != NULL && mainNode == &t2t_node[nodeAddress]) // This is a secondary node
+          else // This is a secondary node
             flag_modeReq[nodeAddress] = MODE_REQUEST_RELEASE_NODE; // Request from main node to release this node from the multi-node working mode
         }
         break;
@@ -649,17 +651,17 @@ void espnow_task(void)
     nextMsgBuff2read = nextMsgBuff2read % (sizeof(rxBuffer)/sizeof(s_rxBuffer));
   }
 
-  // Check the communication with the other nodes is alive in case that this is the main node and it is not working in any single mode
-  if(thisNode == mainNode && thisNode->nextNode != thisNode)
+  // Check the communication with the other nodes is alive
+  if(thisNode == mainNode)
   {
     t_now = get_currentTimeMs();
   
     for(uint8_t index=0; index<nNodes; index++)
     {
-      if(&t2t_node[index] != thisNode)
+      if(&t2t_node[index] != thisNode && t2t_node[index].working == thisNode->working) // Both nodes are in the same mode (working or released)
       {
         // When this node is waiting orders in the main menu, send link periodical messages
-        if(thisNode->nextNode == NULL && (t2t_node[index].linked || t_now - t_origen < 4500))
+        if(!thisNode->working && (t2t_node[index].linked || t_now - t_origen_ms < 4500))
         {
           if(t_now - t2t_node[index].lastRxTime_ms > 4500)
             t2t_node[index].linked = false;
@@ -667,8 +669,8 @@ void espnow_task(void)
             sendESPNowLinkMsg(index, false);
         }
         
-        // When this node is working in a mode with multiple nodes, send link messages if there is no communication the last 2 seconds
-        else if(thisNode->nextNode != NULL && t2t_node[index].prevNode != NULL)
+        // When this node is working in a mode with multiple nodes, send link messages if there is no communication in the last 2 seconds
+        else if(thisNode->working)
         {
           if(t_now - t2t_node[index].lastRxTime_ms > 4500)
             t2t_node[index].linked = false;
@@ -680,13 +682,11 @@ void espnow_task(void)
   }
 }
 
-//todo: simnplificar MODE_MSG modificando siempre el flag y decidiendo qué hacer en la máquina de estados
-//todo: when exit from the mode, release the nodes sending a mode message with request=0 (no funciona bien)
+//todo: corregir entrada y salida del modo requerido
+
 //todo: programar que salga el nodo secundario tras un tiempo si no recibe mensajes del nodo principal
-
-//todo: al entrar en un modo de funcionamiento simple poner next y prev de main al propio main para que en caso de que sea un modo uni-nodo se pueda detectar que está ocupado
+//todo: al entrar en un modo de funcionamiento simple poner working de main a 1 para que en caso de que sea un modo uni-nodo se pueda detectar que está ocupado
   // llamarlo justo al entrar y salir de RUN_MODE en la máquina de estados
-
 
 //todo: sincronizar parpadeo de los leds durante los modos de funcionamiento (poner parpadeo sinusoidal para saber que está funcionando en modo multinodo)
         //t = 0 en main al enviar el mensaje de modo
