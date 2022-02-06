@@ -90,11 +90,6 @@ typedef enum {
   LOWBATTERY_MSG
 } msg_type;
 
-/* Mode message requests */
-#define MODE_REQUEST_UNDEFINED    -1
-#define MODE_REQUEST_ACCEPTED     -2
-#define MODE_REQUEST_RELEASE_NODE -3
-
 /**********************************************************************
  * Local variables
  *********************************************************************/
@@ -109,7 +104,9 @@ s_t2t_node *mainNode = NULL;    // Pointer to the main node position at t2t_node
 s_rxBuffer rxBuffer[8];         // Cyclic buffer to store the received messages
 uint8_t nextMsgBuff2write = 0;  // Next byte to write in the rx buffer
 uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
-int8_t flag_modeReq[nNodes];    // Variable to save the mode message request. >=0 indicates a mode; -1 is nothing; -2 is ACK to join the mode; -3 is release node
+uint8_t mode2join = 0;          // Mode to join when a request must be sent
+int8_t flag_modeReq[nNodes];    // Variable to save the mode message request. 1 for waiting accceptance; 0 is nothing
+bool modeRejected = false;      // Variable to indicate when a mode has been rejected by at least one of the remote nodes
 
 /**********************************************************************
  * Local function declarations
@@ -122,6 +119,8 @@ uint8_t config_node(void);
 void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state);
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len);
 void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected);
+void linking_management(void);
+void mode_request_management(void);
 
 /**********************************************************************
  * Local functions
@@ -183,7 +182,7 @@ void init_node_data(uint8_t nodeAddress)
   t2t_node[nodeAddress].lastTxTime_ms = 0;
   t2t_node[nodeAddress].lastRxTime_ms = 0;
 
-  flag_modeReq[nodeAddress] = -1;
+  flag_modeReq[nodeAddress] = 0;
 }
 
 /**********************************************************************
@@ -270,6 +269,129 @@ void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected)
   msg.ackExpected = ackExpected ? 1u : 0u;
   
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+/**********************************************************************
+ * @brief Manage the linking messages to maintain the communication
+ * with the other nodes alive. This function is called periodically
+ * when the node is the main one.
+ */
+void linking_management(void)
+{
+  uint32_t t_now = 0;
+  t_now = get_currentTimeMs();
+
+  // Check the communication with the other nodes is alive
+  for(uint8_t index=0; index<nNodes; index++)
+  {
+    if(&t2t_node[index] != thisNode && t2t_node[index].working == thisNode->working) // Both nodes are in the same mode (working or released)
+    {
+      // When this node is waiting orders in the main menu, send link periodical messages
+      if(!thisNode->working && (t2t_node[index].linked || t_now - t_origen_ms < 4500))
+      {
+        if(t_now - t2t_node[index].lastRxTime_ms > 4500)
+          t2t_node[index].linked = false;
+        else if(t_now - t2t_node[index].lastTxTime_ms > 2000)
+          sendESPNowLinkMsg(index, false);
+      }
+      
+      // When this node is working in a mode with multiple nodes, send link messages if there is no communication in the last 2 seconds
+      else if(thisNode->working)
+      {
+        if(t_now - t2t_node[index].lastRxTime_ms > 4500)
+          t2t_node[index].linked = false;
+        else if(t_now - t2t_node[index].lastRxTime_ms > 2000)
+          sendESPNowLinkMsg(index, true); // Request ACK. The secondary node won't answer with link messages if it's not required
+      }
+    }
+  }
+}
+
+/**********************************************************************
+ * @brief Send mode requests and manage the acceptances for that
+ * requests. This function is called periodically when the node is the
+ * main one.
+ */
+void mode_request_management(void)
+{
+  enum mode_acceptance_state {
+    SEND_REQUEST,
+    WAIT4RESPONSE,
+    CONNECTION_ERROR,
+    NO_ACCEPTANCES_PENDING
+  };
+
+  static mode_acceptance_state accept_state;
+  static uint32_t t_last_mode_msg_sent = 0;
+  static uint8_t numAttempts = 0;
+
+  switch(accept_state)
+  {
+    case SEND_REQUEST:
+      /* substate actions */
+      for(uint8_t index=0; index<nNodes; index++)
+      {
+        if(&t2t_node[index] != thisNode && flag_modeReq[index])
+          sendESPNowModeMsg(index, mode2join, 1);
+      }
+      numAttempts++;
+      t_last_mode_msg_sent = get_currentTimeMs();
+
+      /* test substate changes */
+      accept_state = WAIT4RESPONSE;
+      break;
+
+    case WAIT4RESPONSE:
+      /* substate actions */
+
+      /* test substate changes */
+      for(uint8_t index=0; index<nNodes; index++)
+      {
+        if(&t2t_node[index] != thisNode && flag_modeReq[index])
+        {
+          if(get_currentTimeMs() - t_last_mode_msg_sent >= 100)
+          {
+            if(numAttempts >= 3)
+              accept_state = CONNECTION_ERROR;
+            else
+              accept_state = SEND_REQUEST;
+            break;
+          }
+        }
+      }
+      accept_state = NO_ACCEPTANCES_PENDING;
+      break;
+      
+    case CONNECTION_ERROR:
+      /* substate actions */
+      modeRejected = true;
+      releaseWorkingModeComm();
+      for(uint8_t index=0; index<nNodes; index++)
+        flag_modeReq[index] = 0;
+      thisNode->working = true;
+
+      /* test substate changes */
+      accept_state = NO_ACCEPTANCES_PENDING;
+      break;
+      
+    case NO_ACCEPTANCES_PENDING:
+      /* substate actions */
+
+      /* test substate changes */
+      for(uint8_t index=0; index<nNodes; index++)
+      {
+        if(&t2t_node[index] != thisNode && flag_modeReq[index])
+        {
+          sendESPNowModeMsg(index, mode2join, 1);
+          numAttempts = 1;
+          accept_state = WAIT4RESPONSE;
+        }
+      }
+      break;
+      
+    default:
+      break;
+  }
 }
 
 /**********************************************************************
@@ -449,97 +571,42 @@ void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battV
 }
 
 /**********************************************************************
- * @brief Check if there is any request from a remote node to join a
- * mode, accept it and reset the flag
+ * @brief Check by seing the flag_modeReq matrix if all the nodes have
+ * accepted the request sended previously
  * 
- * @return: >=0 indicates a mode requested; -1 is nothing
+ * @return: 1 for acceptance completed; 0 for acceptance uncompleted;
+ *          -1 for acceptance rejected
  */
-int8_t checkNacceptJoinModeRequest(void)
+int8_t isAcceptanceCompleted(void)
 {
+  if(modeRejected)
+    return ACCEPTANCE_REJECTED;
+
   for(uint8_t index=0; index<nNodes; index++)
   {
-    if(thisNode == &t2t_node[index])
-    {
-      int8_t request = flag_modeReq[index];
-      flag_modeReq[index] = MODE_REQUEST_UNDEFINED; // Reset flag
-      if(request >= 0)
-      {
-        mainNode = &t2t_node[index];
-        sendESPNowModeMsg(index, request, 0);
-        return request;
-      }
-    }
+    if(&t2t_node[index] != thisNode && flag_modeReq[index] != 0)
+      return ACCEPTANCE_UNCOMPLETED;
   }
 
-  return MODE_REQUEST_UNDEFINED;
-}
-
-/**********************************************************************
- * @brief Check if there is any acceptance of a remote node to join
- * into a requested mode and reset the flag
- * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
- * @return: true if there is an acceptance; false if not
- */
-bool isAnyAcceptance(uint8_t nodeAddress)
-{
-  if(thisNode == &t2t_node[nodeAddress])
-    return MODE_REQUEST_UNDEFINED;
-
-  int8_t request = flag_modeReq[nodeAddress];
-  flag_modeReq[nodeAddress] = MODE_REQUEST_UNDEFINED; // Reset flag
-  return (request == MODE_REQUEST_ACCEPTED);
-}
-
-/**********************************************************************
- * @brief Check if there is any release request from the main node and
- * reset the flag
- * 
- * @return: true if there is a release request; false if not
- */
-bool isAnyReleaseRequestFromMain(void)
-{
-  int8_t request = flag_modeReq[mainNode->nodeAddress];
-  flag_modeReq[mainNode->nodeAddress] = MODE_REQUEST_UNDEFINED; // Reset flag
-  return (request == MODE_REQUEST_RELEASE_NODE);
-}
-
-/**********************************************************************
- * @brief Clean the mode flags to avoid reading old request in case
- * that there weren't read and cleaned before. This function has to be
- * called in every cycle of the state machine.
- */
-void clean_mode_flags(void)
-{
-  for(uint8_t index=0; index<nNodes; index++)
-    flag_modeReq[index] = MODE_REQUEST_UNDEFINED;
-}
-
-/**********************************************************************
- * @brief Configure this node as secondary to allow being control by
- * the main one
- * 
- * @param mainNodeAddress: address of the remote node. Range: [0..7]
- */
-void configThisNodeAsSecondary(uint8_t mainNodeAddress)
-{
-  thisNode->working = true;
-  mainNode = &t2t_node[mainNodeAddress];
+  return ACCEPTANCE_COMPLETED;
 }
 
 /**********************************************************************
  * @brief Configure this node (main) and the secondary nodes as working
  * in a mode
  * 
+ * @param t2t_mode: mode requested
  * @param remoteNodeList: pointer to a list that includes the addresses 
  *                        of the remote nodes to join the mode
  * @param numRemoteNodes: number of remote nodes to join the mode
  */
-void configNodes4WorkingMode(uint8_t *remoteNodeList, uint8_t numRemoteNodes)
+void configNodes4WorkingMode(uint8_t t2t_mode, uint8_t *remoteNodeList, uint8_t numRemoteNodes)
 {
-  thisNode->working = true;
+  modeRejected = false;
+  mode2join = t2t_mode;
+  
   for(uint8_t index=0; index<numRemoteNodes; index++)
-    t2t_node[remoteNodeList[index]].working = true;
+    flag_modeReq[remoteNodeList[index]] = 1;
 }
 
 /**********************************************************************
@@ -549,17 +616,21 @@ void configNodes4WorkingMode(uint8_t *remoteNodeList, uint8_t numRemoteNodes)
  */
 void releaseWorkingModeComm(void)
 {
-  for(uint8_t index=0; index<nNodes; index++)
+  if(thisNode == mainNode)
   {
-    if(t2t_node[index].working)
+    for(uint8_t index=0; index<nNodes; index++)
     {
-      if(&t2t_node[index] != thisNode)
+      if(&t2t_node[index] != thisNode && t2t_node[index].working)
+      {
         sendESPNowModeMsg(t2t_node[index].nodeAddress, 0, 0); // Send a message to release the remote node
-      t2t_node[index].working = false;
+        t2t_node[index].working = false;
+      }
+      flag_modeReq[index] = 0; // Clear a possible mode flag
     }
   }
 
   mainNode = thisNode;
+  thisNode->working = false;
   t_origen_ms = get_currentTimeMs(); // Allows link with other nodes after leaving a mode
 }
 
@@ -569,13 +640,6 @@ void releaseWorkingModeComm(void)
  */
 void espnow_task(void)
 {
-  enum e_comm_state {
-    INIT_LINK,
-    STANDBY
-  };
-
-  uint32_t t_now = 0;
-  
   // Check incoming messages
   if(nextMsgBuff2write != nextMsgBuff2read)
   {
@@ -605,17 +669,28 @@ void espnow_task(void)
         s_espnow_mode_msg msg_mode;
         memcpy(&msg_mode, rxBuffer[nextMsgBuff2read].msg, msgLength);
 
-        if(msg_mode.request)
+        if(msg_mode.request) // Request to join
         {
-          if(thisNode == mainNode)
-            flag_modeReq[nodeAddress] = msg_mode.work_mode; // Request from a future main node to join the working mode
+          if(thisNode == mainNode && !thisNode->working)
+          {
+            thisNode->working = true;
+            mainNode = &t2t_node[nodeAddress];
+            mode2join = msg_mode.work_mode;
+            sendESPNowModeMsg(nodeAddress, msg_mode.request, 0); // Send ACK accepting the request
+          }
         }
-        else // msg_mode.request == 0
+        else // Request accepted or release node
         {
-          if(thisNode == mainNode)
-            flag_modeReq[nodeAddress] = MODE_REQUEST_ACCEPTED; // ACK from the secondary node to accept the main node request
-          else // This is a secondary node
-            flag_modeReq[nodeAddress] = MODE_REQUEST_RELEASE_NODE; // Request from main node to release this node from the multi-node working mode
+          if(thisNode == mainNode && flag_modeReq[nodeAddress])
+          {
+            flag_modeReq[nodeAddress] = 0; // ACK received from the secondary node to accept the request
+            t2t_node[nodeAddress].working = true;
+          }
+          else if(mainNode == &t2t_node[nodeAddress]) // This is a secondary node
+          {
+            mainNode = thisNode;
+            thisNode->working = false;
+          }
         }
         break;
         
@@ -651,38 +726,18 @@ void espnow_task(void)
     nextMsgBuff2read = nextMsgBuff2read % (sizeof(rxBuffer)/sizeof(s_rxBuffer));
   }
 
-  // Check the communication with the other nodes is alive
+  // If this is the main node, manage periodical communication
   if(thisNode == mainNode)
   {
-    t_now = get_currentTimeMs();
-  
-    for(uint8_t index=0; index<nNodes; index++)
-    {
-      if(&t2t_node[index] != thisNode && t2t_node[index].working == thisNode->working) // Both nodes are in the same mode (working or released)
-      {
-        // When this node is waiting orders in the main menu, send link periodical messages
-        if(!thisNode->working && (t2t_node[index].linked || t_now - t_origen_ms < 4500))
-        {
-          if(t_now - t2t_node[index].lastRxTime_ms > 4500)
-            t2t_node[index].linked = false;
-          else if(t_now - t2t_node[index].lastTxTime_ms > 2000)
-            sendESPNowLinkMsg(index, false);
-        }
-        
-        // When this node is working in a mode with multiple nodes, send link messages if there is no communication in the last 2 seconds
-        else if(thisNode->working)
-        {
-          if(t_now - t2t_node[index].lastRxTime_ms > 4500)
-            t2t_node[index].linked = false;
-          else if(t_now - t2t_node[index].lastRxTime_ms > 2000)
-            sendESPNowLinkMsg(index, true); // Request ACK. The secondary node won't answer with link messages if it's not required
-        }
-      }
-    }
+    // Check periodical communication and ACK messages
+    linking_management();
+
+    // Send mode requests and check acceptances
+    mode_request_management();
   }
 }
 
-//todo: corregir entrada y salida del modo requerido
+//todo: controlar envío de mensajes de modo (probar)
 
 //todo: programar que salga el nodo secundario tras un tiempo si no recibe mensajes del nodo principal
 //todo: al entrar en un modo de funcionamiento simple poner working de main a 1 para que en caso de que sea un modo uni-nodo se pueda detectar que está ocupado

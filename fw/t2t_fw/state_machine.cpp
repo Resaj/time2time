@@ -161,7 +161,6 @@ void show_main_menu(uint8_t group_num)
  */
 void normal_lap_time_mode(void)
 {
-  uint32_t t_now = 0;
   static uint32_t time_last_lap_ms = 0;
   static uint32_t time_last_detection = 0;
   static s_display_text text[] = {
@@ -199,7 +198,9 @@ void normal_lap_time_mode(void)
       break;
       
     case SHOW_TIME_WITHOUT_DETECTION:
+    {
       /* substate actions */
+      uint32_t t_now = 0;
       t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_last_detection)/1000.0);
       sprintf(text[1].text, "Last lap: %.3f", time_last_lap_ms/1000.0);
@@ -212,7 +213,7 @@ void normal_lap_time_mode(void)
         substate = WAIT_FOR_DETECTION;
       }
       break;
-    
+    }
     case WAIT_FOR_DETECTION:
       /* substate actions */
       sprintf(text[0].text, "%.3f", (get_currentTimeMs() - time_last_detection)/1000.0);
@@ -280,26 +281,26 @@ bool x_laps_time_mode_laps_selection(void)
 {
   static uint16_t target_laps_selection = x_time_mode_target_laps;
 
-  static s_display_text text[] = {
-    /* text                   , pos_X , pos_Y , font          , aligment   */
-    { "Select number of laps:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
-    { "A -> +1"               , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
-    { "B -> OK"               , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
-    { "C -> -1"               , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
-    { ""                      , 60    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
-  };
-
   switch(substate)
   {
     case INIT_SUBSTATE:
+    {
       /* substate actions */
+      s_display_text text[] = {
+        /* text                   , pos_X , pos_Y , font          , aligment   */
+        { "Select number of laps:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
+        { "A -> +1"               , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
+        { "B -> OK"               , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
+        { "C -> -1"               , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
+        { ""                      , 60    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
+      };
       sprintf(text[4].text, "%u", target_laps_selection);
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
       substate = WAIT_FOR_LAPS_SELECTION;
       break;
-
+    }
     case WAIT_FOR_LAPS_SELECTION:
       /* substate actions */
 
@@ -342,7 +343,6 @@ void x_laps_time_mode(void)
   static uint32_t time_init = 0;
   static uint32_t time_last_detection = 0;
   static uint16_t laps_to_go = 0;
-  uint32_t t_now = 0;
 
   static s_display_text text[] = {
     /* text , pos_X , pos_Y , font                , aligment   */
@@ -382,7 +382,9 @@ void x_laps_time_mode(void)
       break;
       
     case SHOW_TIME_WITHOUT_DETECTION:
+    {
       /* substate actions */
+      uint32_t t_now = 0;
       t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
@@ -396,9 +398,11 @@ void x_laps_time_mode(void)
       }
     
       break;
-      
+    }
     case WAIT_FOR_DETECTION:
+    {
       /* substate actions */
+      uint32_t t_now = 0;
       t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Laps to go: %u", laps_to_go);
@@ -408,7 +412,7 @@ void x_laps_time_mode(void)
       if(sensor_interrupt_flag)
         substate = SHOW_TIME_DETECTION;
       break;
-      
+    }
     case SHOW_TIME_DETECTION:
       /* substate actions */
       laps_to_go--;
@@ -504,18 +508,6 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
   static uint8_t linkedNodes[8]= {0};
   static uint8_t numLinkedNodes = 0;
   static uint8_t index4SelectedNode = 0;
-  static uint8_t numAttempts = 0;
-  static uint32_t t_last_mode_msg_sent = 0;
-  uint32_t t_now = 0;
-
-  static s_display_text text[] = {
-    /* text                 , pos_X , pos_Y , font          , aligment   */
-    { "Select the end node:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
-    { "A -> Previous"       , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
-    { "B -> OK"             , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
-    { "C -> Next"           , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
-    { ""                    , 90    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
-  };
 
   switch(substate)
   {
@@ -534,6 +526,14 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
       /* test substate changes */
       if(numLinkedNodes > 0)
       {
+        s_display_text text[] = {
+          /* text                 , pos_X , pos_Y , font          , aligment   */
+          { "Select the end node:", 0     , 0     , MENU_FONT     , ALIGN_LEFT },
+          { "A -> Previous"       , 0     , 15    , MENU_FONT     , ALIGN_LEFT },
+          { "B -> OK"             , 0     , 30    , MENU_FONT     , ALIGN_LEFT },
+          { "C -> Next"           , 0     , 45    , MENU_FONT     , ALIGN_LEFT },
+          { ""                    , 90    , 10    , MAIN_TIME_FONT, ALIGN_LEFT }
+        };
         sprintf(text[4].text, "%u", linkedNodes[index4SelectedNode]);
         display_set_data(text, sizeof(text)/sizeof(s_display_text));        
         substate = WAIT_FOR_NODE_SELECTION;
@@ -565,10 +565,7 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
       else if(get_button_state(BUTTON_B))
       {
         if(isNodeLinked(linkedNodes[index4SelectedNode]))
-        {
-          numAttempts = 0;
           substate = SEND_MODE_REQUEST;
-        }
         else
         {
           s_display_text text_error[] = {
@@ -601,38 +598,44 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
 
     case SEND_MODE_REQUEST:
       /* substate actions */
-      numAttempts++;
-      t_last_mode_msg_sent = get_currentTimeMs();
-      sendESPNowModeMsg(linkedNodes[index4SelectedNode], t2t_mode, 1);
+      configNodes4WorkingMode(t2t_mode, &linkedNodes[index4SelectedNode], 1);
 
       /* test substate changes */
       substate = WAIT_FOR_CONFIRMATION;
       break;
 
     case WAIT_FOR_CONFIRMATION:
+    {
       /* substate actions */
-      t_now = get_currentTimeMs();
+      int8_t acceptance = 0;
+      acceptance = isAcceptanceCompleted();
       
       /* test substate changes */
-      if(isAnyAcceptance(linkedNodes[index4SelectedNode]))
-        substate = FINISHED;
-      else if(numAttempts < 3 && t_now - t_last_mode_msg_sent >= 50)
-        substate = SEND_MODE_REQUEST;
-      else if(numAttempts >= 3 && t_now - t_last_mode_msg_sent >= 50)
+      switch(acceptance)
       {
-        s_display_text text_error[] = {
+        case ACCEPTANCE_COMPLETED:
+          substate = FINISHED;
+          break;
+
+        case ACCEPTANCE_REJECTED:
+        {
+          s_display_text text_error[] = {
             /* text               , pos_X , pos_Y , font      , aligment   */
             { "Error!"            , 0     , 8     , MENU_FONT , ALIGN_LEFT },
             { "No answer received", 0     , 20    , MENU_FONT , ALIGN_LEFT },
             { "Press C to return" , 0     , 45    , MENU_FONT , ALIGN_LEFT },
           };
-        display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
-        substate = WAIT_FOR_ACTION;
+          display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+          substate = WAIT_FOR_ACTION;
+          break;
+        }
+        default:
+          // Wait. Do nothing
+          break;
       }
       break;
-    
+    }
     case FINISHED:
-      configNodes4WorkingMode(&linkedNodes[index4SelectedNode], 1);
       return NODE_SELECTED;
       break;
 
@@ -650,7 +653,6 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
 void start_stop_mode(void)
 {
   //todo: program start/stop operating mode
-  uint32_t t_now = 0;
 
   static s_display_text text[] = {
     /* text                  , pos_X , pos_Y , font      , aligment */
@@ -706,7 +708,6 @@ void toast_mode(void)
 {
   static uint32_t time_init = 0;
   static uint32_t best_toast_time_ms = BEST_TIME_INIT_VALUE;
-  uint32_t t_now = 0;
 
   static s_display_text text[] = {
     /* Text , pos_X , pos_Y , font                , aligment   */
@@ -744,7 +745,9 @@ void toast_mode(void)
       break;
       
     case SHOW_TIME_WITHOUT_DETECTION:
+    {
       /* substate actions */
+      uint32_t t_now = 0;
       t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Press B to abort");
@@ -761,9 +764,11 @@ void toast_mode(void)
         substate = INIT_SUBSTATE;
 
       break;
-      
+    }
     case WAIT_FOR_DETECTION:
+    {
       /* substate actions */
+      uint32_t t_now = 0;
       t_now = get_currentTimeMs();
       sprintf(text[0].text, "%.3f", (t_now - time_init)/1000.0);
       sprintf(text[1].text, "Press B to abort");
@@ -777,7 +782,7 @@ void toast_mode(void)
         substate = INIT_SUBSTATE;
 
       break;
-      
+    }
     case SHOW_FINAL_TIME:
       /* substate actions */
       sprintf(text[0].text, "%.3f", (time_detection - time_init)/1000.0);
@@ -815,24 +820,25 @@ void toast_mode(void)
 void show_t2t_info(void)
 {
   static uint32_t time_init = 0;
-  uint8_t textSize = 0;
-  uint8_t MAClisted = false;
-  uint8_t linkedNodes[8];
-  uint8_t numLinkedNodes;
-
-  s_display_text text[] = {
-    /* Text , pos_X , pos_Y , font                , aligment      */
-    {  ""   , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER  },
-    {  ""   , 63    , 12    , SECONDARY_TIME_FONT , ALIGN_CENTER  },
-    {  ""   , 0     , 24    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
-    {  ""   , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
-    {  ""   , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT    }
-  };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
+    {
       /* substate actions */
+      uint8_t textSize = 0;
+      uint8_t MAClisted = false;
+      uint8_t linkedNodes[8];
+      uint8_t numLinkedNodes;
+
+      s_display_text text[] = {
+        /* Text , pos_X , pos_Y , font                , aligment      */
+        {  ""   , 63    , 0     , SECONDARY_TIME_FONT , ALIGN_CENTER  },
+        {  ""   , 63    , 12    , SECONDARY_TIME_FONT , ALIGN_CENTER  },
+        {  ""   , 0     , 24    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
+        {  ""   , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
+        {  ""   , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT    }
+      };
       sprintf(text[0].text, "--- T2T #%u info ---", getThisNodeAddr());
       MAClisted = getNcheckMACAddr(text[1].text);
 
@@ -894,7 +900,7 @@ void show_t2t_info(void)
       /* test substate changes */
       substate = FINISHED;
       break;
-      
+    }
     case FINISHED:
       /* substate actions */
 
@@ -974,13 +980,29 @@ void go_to_sleep(void)
  */
 void state_machine_task(void)
 {
+  static bool isMainNode = true, wasMainNode = true;
   static program_state state = INIT_STATE;
   static mode2run t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
-  nodeSelectionState nodeSelState;
-  int8_t mode_request = -1;
 
-  if(isThisTheMainNode()) // This node is not being controlled by another one
+  isMainNode = isThisTheMainNode();
+
+  if(isMainNode != wasMainNode)
+  {
+    if(isMainNode)
+      state = INIT_STATE; // Reset the state while the node is released from a secondary rol
+    else
+    {
+      s_display_text text[] = {
+        /* Text             , pos_X , pos_Y , font      , aligment   */
+        {  "Secondary node" , 0     , 8     , MENU_FONT , ALIGN_LEFT  },
+      };
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+    }
+    wasMainNode = isMainNode;
+  }
+
+  if(isMainNode) // This node is not being controlled by another one
   {
     /* Main state machine control */
     switch(state)
@@ -995,23 +1017,9 @@ void state_machine_task(void)
 
       case MAIN_MENU:
         /* state actions */
-        mode_request = checkNacceptJoinModeRequest();
         
         /* test state changes */
-        if(-1 < mode_request) // Mode request has been received
-        {
-          s_display_text text[] = {
-            /* Text             , pos_X , pos_Y , font      , aligment   */
-            {  "Secondary node" , 0     , 8     , MENU_FONT , ALIGN_LEFT  },
-            {  ""               , 0     , 20    , MENU_FONT , ALIGN_RIGHT }
-          };
-
-          sprintf(text[1].text, "Mode #%d", mode_request);
-          display_set_data(text, sizeof(text)/sizeof(s_display_text));
-
-          break;
-        }
-        else if(get_button_state(BUTTON_A))
+        if(get_button_state(BUTTON_A))
         {
           t2t_mode = mode_data[menu_screen_num*2].time_mode;
           state = mode_data[menu_screen_num*2].next_menu_state;
@@ -1049,7 +1057,9 @@ void state_machine_task(void)
         break;
 
       case SELECT_END_NODE:
+      {
         /* state actions */
+        nodeSelectionState nodeSelState;
         nodeSelState = end_node_selection(t2t_mode);
 
         /* test state changes */
@@ -1061,7 +1071,7 @@ void state_machine_task(void)
         else if(ERROR_WHILE_SELECTING == nodeSelState)
           state = INIT_STATE;
         break;
-
+      }
       case RUN_MODE:
         /* state actions */
         (*mode_data[t2t_mode].func)();
@@ -1081,20 +1091,9 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
-    if(isAnyReleaseRequestFromMain())
-    {
-      releaseWorkingModeComm();
-      state = INIT_STATE;
-    }
-    else
-    {
-      //todo: reportar detecciones y representar tiempos que mande el nodo principal
-    }
+    //todo: reportar detecciones y representar tiempos que mande el nodo principal
   }
 
   /* General function for the RGB led control */
   set_led_from_diags();
-
-  /* Clean mode flags to avoid reading old storaged requests */
-  clean_mode_flags();
 }
