@@ -121,6 +121,7 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
 void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected);
 void linking_management(void);
 void mode_request_management(void);
+void setThisNodeAsIdle(void);
 
 /**********************************************************************
  * Local functions
@@ -289,7 +290,7 @@ void linking_management(void)
       // When this node is waiting orders in the main menu, send link periodical messages
       if(!thisNode->working && (t2t_node[index].linked || t_now - t_origen_ms < 4500))
       {
-        if(t_now - t2t_node[index].lastRxTime_ms > 4500)
+        if(t_now - t2t_node[index].lastRxTime_ms > 4500 && t_now - t_origen_ms > 4500)
           t2t_node[index].linked = false;
         else if(t_now - t2t_node[index].lastTxTime_ms > 2000)
           sendESPNowLinkMsg(index, false);
@@ -300,7 +301,7 @@ void linking_management(void)
       {
         if(t_now - t2t_node[index].lastRxTime_ms > 4500)
           t2t_node[index].linked = false;
-        else if(t_now - t2t_node[index].lastRxTime_ms > 2000)
+        else if(t_now - t2t_node[index].lastRxTime_ms > 2000 && thisNode == mainNode)
           sendESPNowLinkMsg(index, true); // Request ACK. The secondary node won't answer with link messages if it's not required
       }
     }
@@ -321,7 +322,7 @@ void mode_request_management(void)
     NO_ACCEPTANCES_PENDING
   };
 
-  static mode_acceptance_state accept_state;
+  static mode_acceptance_state accept_state = NO_ACCEPTANCES_PENDING;
   static uint32_t t_last_mode_msg_sent = 0;
   static uint8_t numAttempts = 0;
 
@@ -359,6 +360,7 @@ void mode_request_management(void)
           }
         }
       }
+      setThisNodeAsBusy();
       accept_state = NO_ACCEPTANCES_PENDING;
       break;
       
@@ -368,7 +370,6 @@ void mode_request_management(void)
       releaseWorkingModeComm();
       for(uint8_t index=0; index<nNodes; index++)
         flag_modeReq[index] = 0;
-      thisNode->working = true;
 
       /* test substate changes */
       accept_state = NO_ACCEPTANCES_PENDING;
@@ -392,6 +393,14 @@ void mode_request_management(void)
     default:
       break;
   }
+}
+
+/**********************************************************************
+ * @brief Set this node as idle by clearing the working flag
+ */
+void setThisNodeAsIdle(void)
+{
+  thisNode->working = false;
 }
 
 /**********************************************************************
@@ -518,6 +527,34 @@ bool isNodeLinked(uint8_t nodeAddress)
 }
 
 /**********************************************************************
+ * @brief Return the linked state of the main node
+ * 
+ * @return: true if the main node is linked; false if not
+ */
+bool isMainNodeLinked(void)
+{
+  return mainNode->linked;
+}
+
+/**********************************************************************
+ * @brief Return the linked state of the working nodes. This function
+ * is called when the node acts like the main one to check that the
+ * comm with every working node is alive.
+ * 
+ * @return: true if all of the working nodes are linked; false if not
+ */
+bool isEveryWorkingNodeLinked(void)
+{
+  for(uint8_t index=0; index<nNodes; index++)
+  {
+    if(&t2t_node[index] != thisNode && t2t_node[index].working && !t2t_node[index].linked)
+      return false;
+  }
+  
+  return true;
+}
+
+/**********************************************************************
  * @brief Sends an ESPNow message to set the mode of a remote linked
  * node.
  * 
@@ -628,10 +665,22 @@ void releaseWorkingModeComm(void)
       flag_modeReq[index] = 0; // Clear a possible mode flag
     }
   }
+  else
+  {
+    mainNode->working = false;
+    mainNode = thisNode;
+  }
 
-  mainNode = thisNode;
-  thisNode->working = false;
+  setThisNodeAsIdle();
   t_origen_ms = get_currentTimeMs(); // Allows link with other nodes after leaving a mode
+}
+
+/**********************************************************************
+ * @brief Set this node as busy by setting the working flag
+ */
+void setThisNodeAsBusy(void)
+{
+  thisNode->working = true;
 }
 
 /**********************************************************************
@@ -661,7 +710,7 @@ void espnow_task(void)
         s_espnow_link_msg msg_link;
         memcpy(&msg_link, rxBuffer[nextMsgBuff2read].msg, msgLength);
         
-        if(msg_link.ackExpected) // If the remote node asks for an ACK (it only occurs between a main and a secondary nodes), send a link msg without asking for another ACK
+        if(msg_link.ackExpected && mainNode == &t2t_node[nodeAddress]) // If the remote node asks for an ACK, send a link msg without asking for another ACK
           sendESPNowLinkMsg(nodeAddress, false);
         break;
 
@@ -673,8 +722,9 @@ void espnow_task(void)
         {
           if(thisNode == mainNode && !thisNode->working)
           {
-            thisNode->working = true;
+            setThisNodeAsBusy();
             mainNode = &t2t_node[nodeAddress];
+            mainNode->working = true;
             mode2join = msg_mode.work_mode;
             sendESPNowModeMsg(nodeAddress, msg_mode.request, 0); // Send ACK accepting the request
           }
@@ -688,8 +738,7 @@ void espnow_task(void)
           }
           else if(mainNode == &t2t_node[nodeAddress]) // This is a secondary node
           {
-            mainNode = thisNode;
-            thisNode->working = false;
+            releaseWorkingModeComm();
           }
         }
         break;
@@ -726,26 +775,16 @@ void espnow_task(void)
     nextMsgBuff2read = nextMsgBuff2read % (sizeof(rxBuffer)/sizeof(s_rxBuffer));
   }
 
-  // If this is the main node, manage periodical communication
-  if(thisNode == mainNode)
-  {
-    // Check periodical communication and ACK messages
-    linking_management();
+  // Check periodical communication and ACK messages
+  linking_management();
 
-    // Send mode requests and check acceptances
-    mode_request_management();
-  }
+  if(thisNode == mainNode) // If this is the main node, manage mode messages
+    mode_request_management(); // Send mode requests and check acceptances
 }
 
-//todo: controlar envío de mensajes de modo (probar)
-
-//todo: programar que salga el nodo secundario tras un tiempo si no recibe mensajes del nodo principal
-//todo: al entrar en un modo de funcionamiento simple poner working de main a 1 para que en caso de que sea un modo uni-nodo se pueda detectar que está ocupado
-  // llamarlo justo al entrar y salir de RUN_MODE en la máquina de estados
-
+//todo: cuando en un modo multinodo el nodo secundario se resetea, el main no se entera. Modificar funcionalidad del flag de ACK del mensaje de link para identificarlo
 //todo: sincronizar parpadeo de los leds durante los modos de funcionamiento (poner parpadeo sinusoidal para saber que está funcionando en modo multinodo)
         //t = 0 en main al enviar el mensaje de modo
         //t = t_now - t_lastMsgRxFromMainNode en el nodo secundario al enviar el mensaje de modo aceptando enlace
-//todo: llamar a una función de este módulo desde la máquina de estados para saber si todos los links están enlazados o hay error y tiene que salir del modo multinodo
 
 //todo: measure the tx time

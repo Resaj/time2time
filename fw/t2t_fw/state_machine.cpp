@@ -37,7 +37,9 @@ enum program_state {
   MAIN_MENU,
   SET_NUM_LAPS,
   SELECT_END_NODE,
-  RUN_MODE
+  RUN_MODE,
+  COMM_ERROR,
+  SHOW_INFO
 };
 
 enum program_substate {
@@ -114,7 +116,7 @@ s_mode_data mode_data[] = {
   { X_LAPS_TIME_MODE     , "X laps time"         , x_laps_time_mode     , SET_NUM_LAPS    , INIT_SUBSTATE },
   { START_STOP_MODE      , "Start/Stop (2x t2t)" , start_stop_mode      , SELECT_END_NODE , INIT_SUBSTATE },
   { TOAST_MODE           , "Get toast time"      , toast_mode           , RUN_MODE        , INIT_SUBSTATE },
-  { SHOW_T2T_INFO        , "Time2time info"      , show_t2t_info        , RUN_MODE        , INIT_SUBSTATE },
+  { SHOW_T2T_INFO        , "Time2time info"      , show_t2t_info        , SHOW_INFO       , INIT_SUBSTATE },
   { ONLY_CHARGE          , "Only charge"         , go_to_sleep          , RUN_MODE        , INIT_SUBSTATE }
 };
 
@@ -1043,6 +1045,9 @@ void state_machine_task(void)
             state = INIT_STATE;
           }
         }
+
+        if(state == RUN_MODE)
+          setThisNodeAsBusy();
         break;
 
       case SET_NUM_LAPS:
@@ -1051,6 +1056,7 @@ void state_machine_task(void)
         /* test state changes */
         if(x_laps_time_mode_laps_selection())
         {
+          setThisNodeAsBusy();
           state = RUN_MODE;
           substate = INIT_SUBSTATE;
         }
@@ -1065,6 +1071,7 @@ void state_machine_task(void)
         /* test state changes */
         if(NODE_SELECTED == nodeSelState)
         {
+          setThisNodeAsBusy();
           state = RUN_MODE;
           substate = INIT_SUBSTATE;
         }
@@ -1083,14 +1090,47 @@ void state_machine_task(void)
           releaseWorkingModeComm();
           state = INIT_STATE;
         }
+        else if(!isEveryWorkingNodeLinked())
+        {
+          s_display_text text_error[] = {
+            /* text                 , pos_X , pos_Y , font      , aligment   */
+            { "Error! Comm failed!" , 0     , 20    , MENU_FONT , ALIGN_LEFT },
+            { "Press C to return"   , 0     , 45    , MENU_FONT , ALIGN_LEFT },
+          };
+          display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+          state = COMM_ERROR;
+        }
         break;
 
+      case COMM_ERROR:
+        /* state actions */
+
+        /* test state changes */
+        if(get_button_state(BUTTON_C))
+        {
+          set_default_sensor_active_edge();
+          releaseWorkingModeComm();
+          state = INIT_STATE;
+        }
+
+      case SHOW_INFO:
+        /* state actions */
+        (*mode_data[t2t_mode].func)();
+
+        /* test state changes */
+        if(get_button_state(BUTTON_C))
+          state = INIT_STATE;
+        break;
+      
       default:
         break;
     }
   }
   else // This node is being controlled by another one
   {
+    if(!isMainNodeLinked()) // If comm with main node is lost, exit from mode
+      releaseWorkingModeComm();
+      
     //todo: reportar detecciones y representar tiempos que mande el nodo principal
   }
 

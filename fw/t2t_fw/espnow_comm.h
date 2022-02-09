@@ -49,6 +49,8 @@ bool getNcheckMACAddr(char* macAddr);
 bool isThisTheMainNode(void);
 uint8_t getLinkedNodes(uint8_t *nodes);
 bool isNodeLinked(uint8_t nodeAddress);
+bool isMainNodeLinked(void);
+bool isEveryWorkingNodeLinked(void);
 
 void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request);
 void sendESPNowDetectionMsg(uint8_t nodeAddress);
@@ -57,6 +59,8 @@ void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battV
 int8_t isAcceptanceCompleted(void);
 void configNodes4WorkingMode(uint8_t t2t_mode, uint8_t *remoteNodeList, uint8_t numRemoteNodes);
 void releaseWorkingModeComm(void);
+
+void setThisNodeAsBusy(void);
 
 void espnow_task(void);
 
