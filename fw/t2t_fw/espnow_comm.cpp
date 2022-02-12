@@ -49,7 +49,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type        : 3;
-  uint8_t ackExpected : 1;  // Waiting for an ACK. 1 = true; 0 = false
+  uint8_t ack         : 1;  // ACK or ask for it. 1 = true; 0 = false
   uint8_t reserved    : 4;
 } s_espnow_link_msg;
 
@@ -118,7 +118,7 @@ void init_node_data(uint8_t nodeAddress);
 uint8_t config_node(void);
 void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state);
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len);
-void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected);
+void sendESPNowLinkMsg(uint8_t nodeAddress, bool ack);
 void linking_management(void);
 void mode_request_management(void);
 void setThisNodeAsIdle(void);
@@ -261,13 +261,15 @@ void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t le
  * with another node
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
- * @param ackExpected: requires or not an ACK for the message
+ * @param ack: if the message is sent by the main node, this flag
+ *             requires or not an ACK; if the message is sent by a
+ *             secondary node, this flag answer with or without the ACK
  */
-void sendESPNowLinkMsg(uint8_t nodeAddress, bool ackExpected)
+void sendESPNowLinkMsg(uint8_t nodeAddress, bool ack)
 {
   s_espnow_link_msg msg;
   msg.type = (uint8_t)LINK_MSG;
-  msg.ackExpected = ackExpected ? 1u : 0u;
+  msg.ack = ack ? 1u : 0u;
   
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
@@ -710,8 +712,10 @@ void espnow_task(void)
         s_espnow_link_msg msg_link;
         memcpy(&msg_link, rxBuffer[nextMsgBuff2read].msg, msgLength);
         
-        if(msg_link.ackExpected && mainNode == &t2t_node[nodeAddress]) // If the remote node asks for an ACK, send a link msg without asking for another ACK
-          sendESPNowLinkMsg(nodeAddress, false);
+        if(msg_link.ack && mainNode == &t2t_node[nodeAddress]) // If the remote node asks for an ACK, send a link msg with the ACK flag set
+          sendESPNowLinkMsg(nodeAddress, true);
+        else if(!msg_link.ack && t2t_node[nodeAddress].working && mainNode == thisNode) // The secondary node has been reseted and it is out of the mode
+          t2t_node[nodeAddress].linked = false;
         break;
 
       case MODE_MSG:
@@ -782,9 +786,7 @@ void espnow_task(void)
     mode_request_management(); // Send mode requests and check acceptances
 }
 
-//todo: cuando en un modo multinodo el nodo secundario se resetea, el main no se entera. Modificar funcionalidad del flag de ACK del mensaje de link para identificarlo
 //todo: sincronizar parpadeo de los leds durante los modos de funcionamiento (poner parpadeo sinusoidal para saber que está funcionando en modo multinodo)
         //t = 0 en main al enviar el mensaje de modo
         //t = t_now - t_lastMsgRxFromMainNode en el nodo secundario al enviar el mensaje de modo aceptando enlace
-
 //todo: measure the tx time
