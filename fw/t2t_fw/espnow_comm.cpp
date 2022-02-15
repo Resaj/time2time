@@ -223,8 +223,6 @@ uint8_t config_node(void)
   return 0;
 }
 
-//int8_t imprimir = 0;
-
 /**********************************************************************
  * @brief Handler executed when there is a ESPNow transmission
  */
@@ -233,16 +231,6 @@ void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state)
   int8_t posNodeInList = isMacAddressListed((uint8_t *)MAC_Addr);
   if(posNodeInList >= 0)
     t2t_node[posNodeInList].lastTxTime_ms = get_currentTimeMs(); // Save tx time
-
-//  if(imprimir == 1)
-//  {
-//    imprimir = 0;
-//    Serial.print("tx at: ");
-//    Serial.println(t2t_node[posNodeInList].lastTxTime_ms);
-//    Serial.print("diff: ");
-//    Serial.println(t2t_node[posNodeInList].lastTxTime_ms - t2t_node[posNodeInList].lastRxTime_ms);
-//    Serial.println();
-//  }
 }
 
 /**********************************************************************
@@ -727,26 +715,9 @@ void espnow_task(void)
         memcpy(&msg_link, rxBuffer[nextMsgBuff2read].msg, msgLength);
         
         if(msg_link.ack && mainNode == &t2t_node[nodeAddress]) // If the remote node asks for an ACK, send a link msg with the ACK flag set
-        {
-//          uint32_t foo_ms_2 = 0;
           sendESPNowLinkMsg(nodeAddress, true);
-//          foo_ms_2 = get_currentTimeMs();
-//          Serial.print("rx at: ");
-//          Serial.println(t2t_node[nodeAddress].lastRxTime_ms);
-//          imprimir = 1;
-        }
         else if(!msg_link.ack && t2t_node[nodeAddress].working && mainNode == thisNode) // The secondary node has been reseted and it is out of the mode
           t2t_node[nodeAddress].linked = false;
-//        else if(msg_link.ack && mainNode == thisNode)
-//        {
-//          Serial.print("tx at: ");
-//          Serial.println(t2t_node[nodeAddress].lastTxTime_ms);
-//          Serial.print("rx at: ");
-//          Serial.println(t2t_node[nodeAddress].lastRxTime_ms);
-//          Serial.print("diff: ");
-//          Serial.println(t2t_node[nodeAddress].lastRxTime_ms - t2t_node[nodeAddress].lastTxTime_ms);
-//          Serial.println();
-//        }
         break;
 
       case MODE_MSG:
