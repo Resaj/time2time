@@ -20,7 +20,14 @@
 #include "config/PINSEL.h"
 #include "config/MyMACAddrList.h"
 #include "espnow_comm.h"
+#include "led_rgb.h"
 #include "scheduler.h"
+
+/**********************************************************************
+ * Defines & enums
+ *********************************************************************/
+
+#define MAX_MSG_SIZE 4
 
 /**********************************************************************
  * Structs
@@ -38,7 +45,7 @@ typedef struct s_t2t_node {
 typedef struct {
   uint8_t nodeAddr  : 4;
   uint8_t msgLength : 4;
-  uint8_t msg[3];
+  uint8_t msg[MAX_MSG_SIZE];
   uint32_t rxTime;
 } s_rxBuffer;
 
@@ -54,10 +61,12 @@ typedef struct {
 } s_espnow_link_msg;
 
 typedef struct {
-  uint8_t type      : 3;
-  uint8_t work_mode : 3;  // Working mode (0-7)
-  uint8_t request   : 1;  // Request from main (1), answer to accept from secondary (0) or release node from main (0)
-  uint8_t reserved  : 1;
+  uint32_t type       : 3;
+  uint32_t work_mode  : 3;  // Working mode (0-7)
+  uint32_t request    : 1;  // Request from main (1), answer to accept from secondary (0) or release node from main (0)
+  uint32_t reserved1  : 1;
+  uint32_t ref_time   : 11; // Reference time in milliseconds. Up to 2 seconds
+  uint32_t reserved2  : 5;
 } s_espnow_mode_msg;
 
 typedef struct {
@@ -67,8 +76,8 @@ typedef struct {
 } s_espnow_detection_msg;
 
 typedef struct {
-  uint8_t type      : 3;
-  uint8_t reserved  : 7;
+  uint8_t type        : 3;
+  uint8_t reserved    : 5;
   uint16_t time2show;     // Partial time in milliseconds. Up to 65 sec
 } s_espnow_time_msg;
 
@@ -239,7 +248,7 @@ void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state)
  */
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len)
 {
-  int32_t t_now = get_currentTimeMs();
+  uint32_t t_now = get_currentTimeMs();
   int8_t posNodeInList = isMacAddressListed((uint8_t *)MAC_Addr);
 
   if(posNodeInList != -1)
@@ -270,7 +279,7 @@ void sendESPNowLinkMsg(uint8_t nodeAddress, bool ack)
   s_espnow_link_msg msg;
   msg.type = (uint8_t)LINK_MSG;
   msg.ack = ack ? 1u : 0u;
-
+  
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
@@ -350,22 +359,27 @@ void mode_request_management(void)
       /* substate actions */
 
       /* test substate changes */
-      for(uint8_t index=0; index<nNodes; index++)
+      switch(isAcceptanceCompleted())
       {
-        if(&t2t_node[index] != thisNode && flag_modeReq[index])
-        {
+        case ACCEPTANCE_UNCOMPLETED:
           if(get_currentTimeMs() - t_last_mode_msg_sent >= 100)
           {
             if(numAttempts >= 3)
               accept_state = CONNECTION_ERROR;
             else
               accept_state = SEND_REQUEST;
-            break;
           }
-        }
+          break;
+          
+        case ACCEPTANCE_COMPLETED:
+          //setThisNodeAsBusy();
+          accept_state = NO_ACCEPTANCES_PENDING;
+          break;
+
+        default:
+          accept_state = CONNECTION_ERROR;
+          break;
       }
-      setThisNodeAsBusy();
-      accept_state = NO_ACCEPTANCES_PENDING;
       break;
       
     case CONNECTION_ERROR:
@@ -381,16 +395,21 @@ void mode_request_management(void)
       
     case NO_ACCEPTANCES_PENDING:
       /* substate actions */
-
-      /* test substate changes */
+      numAttempts = 0;
       for(uint8_t index=0; index<nNodes; index++)
       {
         if(&t2t_node[index] != thisNode && flag_modeReq[index])
         {
           sendESPNowModeMsg(index, mode2join, 1);
           numAttempts = 1;
-          accept_state = WAIT4RESPONSE;
         }
+      }
+
+      /* test substate changes */
+      if(numAttempts == 1)
+      {
+        t_last_mode_msg_sent = get_currentTimeMs();
+        accept_state = WAIT4RESPONSE;
       }
       break;
       
@@ -573,6 +592,7 @@ void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request)
   msg.type = (uint8_t)MODE_MSG;
   msg.work_mode = work_mode;
   msg.request = request;
+  msg.ref_time = (uint16_t)(get_currentTimeMs() % get_led_period());
 
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
@@ -671,6 +691,7 @@ void releaseWorkingModeComm(void)
   }
   else
   {
+    clear_led_time_offset();
     mainNode->working = false;
     mainNode = thisNode;
   }
@@ -728,11 +749,12 @@ void espnow_task(void)
         {
           if(thisNode == mainNode && !thisNode->working)
           {
+            sendESPNowModeMsg(nodeAddress, msg_mode.request, 0); // Send ACK accepting the request
+            set_led_time_offset(t2t_node[nodeAddress].lastRxTime_ms, (uint16_t)msg_mode.ref_time);
             setThisNodeAsBusy();
             mainNode = &t2t_node[nodeAddress];
             mainNode->working = true;
             mode2join = msg_mode.work_mode;
-            sendESPNowModeMsg(nodeAddress, msg_mode.request, 0); // Send ACK accepting the request
           }
         }
         else // Request accepted or release node
@@ -788,6 +810,8 @@ void espnow_task(void)
     mode_request_management(); // Send mode requests and check acceptances
 }
 
-//todo: sincronizar parpadeo de los leds durante los modos de funcionamiento con un offset de tiempo en el módulo de scheduler (poner parpadeo sinusoidal en modo multinodo)
 //todo: comunicar detección y muestra de tiempos
 //todo: gestión del orden de los nodos desde la máquina de estados, al seleccionarlos
+//todo: include a time synchronization protocol
+  // https://encyclopedia.pub/4192
+  // https://github.com/bestvibes/IEEE1588-PTP

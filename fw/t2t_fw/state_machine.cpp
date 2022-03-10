@@ -97,7 +97,7 @@ nodeSelectionState end_node_selection(mode2run t2t_mode);
 void start_stop_mode(void);
 void toast_mode(void);
 void show_t2t_info(void);
-void set_led_from_diags(void);
+void set_led_from_diags(bool isModeRunning);
 void go_to_sleep(void);
 
 /**********************************************************************
@@ -917,39 +917,74 @@ void show_t2t_info(void)
 }
 
 /**********************************************************************
- * @brief Set the status of the led according to the supply diagnostics
+ * @brief Set the status of the led according to the supply
+ * diagnostics. If a mode is running, the led blink is a sinusoidal
+ * wave.
+ * 
+ * @param isModeRunning: true if a mode is running; false if not
  */
-void set_led_from_diags(void)
+void set_led_from_diags(bool isModeRunning)
 {
+  e_rgb_color rgb_color;
+  uint16_t brightness = 0, period = 0, period_on = 0;
+
+  if(batt_charger_diag == TEMP_OR_TIMER_FAULT) // 0 - Temperature fault or timer fault
+  {
+    set_rgb_led_blink_mode(RGB_RED, MAX_BRIGHTNESS, 200, 100);
+    return;
+  }
+  
   switch(batt_charger_diag)
   {
-    case TEMP_OR_TIMER_FAULT: // 0 - Temperature fault or timer fault
-      set_rgb_led_blink_mode(RGB_RED, MAX_BRIGHTNESS, 200, 100);
-      break;
-      
     case PRECONDITIONING:     // 2 - Preconditioning, constant current or constant voltage
-      set_rgb_led_blink_mode(RGB_YELLOW, MAX_BRIGHTNESS, 2000, 100);
+      rgb_color = RGB_YELLOW;
+      brightness = MAX_BRIGHTNESS;
+      period = 2000;
+      period_on = 100;
       break;
       
     case LOW_BATTERY_OUTPUT:  // 3 - Low battery output
-      set_rgb_led_blink_mode(RGB_RED, MAX_BRIGHTNESS, 2000, 100);
+      rgb_color = RGB_RED;
+      brightness = MAX_BRIGHTNESS;
+      period = 2000;
+      period_on = 100;
       break;
       
     case CHARGE_COMPLETE:     // 4 - Charge complete
-      set_rgb_led_blink_mode(RGB_GREEN, MAX_BRIGHTNESS, 2000, 100);
+      rgb_color = RGB_GREEN;
+      brightness = MAX_BRIGHTNESS;
+      period = 2000;
+      period_on = 100;
       break;
       
     case NO_BATTERY:          // 6 - Shutdown (VDD = VIN) or no battery present
-      set_rgb_led_on_mode(RGB_BLUE, MAX_BRIGHTNESS);
+      rgb_color = RGB_BLUE;
+      brightness = MAX_BRIGHTNESS;
+      period = 2000;
+      period_on = 2000;
       break;
       
     case NO_INPUT_POWER:      // 7 - Shutdown (VDD = VBAT) or no input power present
-      set_rgb_led_blink_mode(RGB_CYAN, MAX_BRIGHTNESS, 2000, 100);
+      rgb_color = RGB_CYAN;
+      brightness = MAX_BRIGHTNESS;
+      period = 2000;
+      period_on = 100;
       break;
       
     default:
-      set_rgb_led_off_mode();
       break;
+  }
+
+  if(!brightness)
+    set_rgb_led_off_mode();
+  else if(period == period_on)
+    set_rgb_led_on_mode(rgb_color, brightness);
+  else
+  {
+    if(isModeRunning)
+      set_rgb_led_sinusoidal_wave_mode(rgb_color, brightness, period, period_on*5);
+    else
+      set_rgb_led_blink_mode(rgb_color, brightness, period, period_on);
   }
 }
 
@@ -983,7 +1018,7 @@ void go_to_sleep(void)
 void state_machine_task(void)
 {
   static bool isMainNode = true, wasMainNode = true;
-  static program_state state = INIT_STATE;
+  static program_state state = INIT_STATE, prev_state = INIT_STATE;
   static mode2run t2t_mode = NORMAL_LAP_TIME_MODE;
   static uint8_t menu_screen_num = 0;
 
@@ -1045,9 +1080,6 @@ void state_machine_task(void)
             state = INIT_STATE;
           }
         }
-
-        if(state == RUN_MODE)
-          setThisNodeAsBusy();
         break;
 
       case SET_NUM_LAPS:
@@ -1055,11 +1087,7 @@ void state_machine_task(void)
 
         /* test state changes */
         if(x_laps_time_mode_laps_selection())
-        {
-          setThisNodeAsBusy();
           state = RUN_MODE;
-          substate = INIT_SUBSTATE;
-        }
         break;
 
       case SELECT_END_NODE:
@@ -1070,11 +1098,7 @@ void state_machine_task(void)
 
         /* test state changes */
         if(NODE_SELECTED == nodeSelState)
-        {
-          setThisNodeAsBusy();
           state = RUN_MODE;
-          substate = INIT_SUBSTATE;
-        }
         else if(ERROR_WHILE_SELECTING == nodeSelState)
           state = INIT_STATE;
         break;
@@ -1098,6 +1122,9 @@ void state_machine_task(void)
             { "Press C to return"   , 0     , 45    , MENU_FONT , ALIGN_LEFT },
           };
           display_set_data(text_error, sizeof(text_error)/sizeof(s_display_text));
+
+          set_default_sensor_active_edge();
+          releaseWorkingModeComm();
           state = COMM_ERROR;
         }
         break;
@@ -1107,11 +1134,7 @@ void state_machine_task(void)
 
         /* test state changes */
         if(get_button_state(BUTTON_C))
-        {
-          set_default_sensor_active_edge();
-          releaseWorkingModeComm();
           state = INIT_STATE;
-        }
 
       case SHOW_INFO:
         /* state actions */
@@ -1125,6 +1148,18 @@ void state_machine_task(void)
       default:
         break;
     }
+
+    /* Check if a mode is running and set this node as busy */
+    if(state != prev_state)
+    {
+      if(RUN_MODE == state)
+      {
+        setThisNodeAsBusy();
+        substate = INIT_SUBSTATE;
+      }
+      
+      prev_state = state;
+    }
   }
   else // This node is being controlled by another one
   {
@@ -1135,5 +1170,5 @@ void state_machine_task(void)
   }
 
   /* General function for the RGB led control */
-  set_led_from_diags();
+  set_led_from_diags(state == RUN_MODE || !isMainNode);
 }

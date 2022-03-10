@@ -95,9 +95,9 @@ void tasks_10ms(void)
 {
   buttons_task();
   buzzer_task();
+  espnow_task();
   state_machine_task();
   led_task();
-  espnow_task();
 }
 
 /**********************************************************************
