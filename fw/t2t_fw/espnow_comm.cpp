@@ -75,14 +75,14 @@ typedef struct {
 } s_espnow_mode_msg;
 
 typedef struct {
-  uint8_t type          : 3;
-  uint8_t reserved      : 5;
-  uint8_t elapsed_time;       // Elapsed time between the detection and the tx of the msg, in ms
+  uint8_t type        : 3;
+  uint8_t reserved    : 5;
+  uint8_t elapsed_time;     // Elapsed time between the detection and the tx of the msg, in ms
 } s_espnow_detection_msg;
 
 typedef struct {
   uint8_t type          : 3;
-  uint8_t reserved      : 2;
+  uint8_t beep          : 2;  // No beep (0), simple beep (1) or double beep (2) when receiving the order
   uint8_t time2show_min : 3;  // Partial time in minutes. Up to 7 minutes
   uint16_t time2show_msec;    // Partial time in milliseconds. Up to 59999 milliseconds
 } s_espnow_time_msg;
@@ -128,6 +128,7 @@ uint32_t detection_time = 0;              // Detection time to send to the main 
 bool detection_waiting4response = false;  // Flag to manage the retransmissions of the detection_time
 uint32_t last_detectionMsg_Tx = 0;        // Last time when a detection message was sent
 uint32_t time2show = 0;                   // Time to show when a time message is received from the main node
+uint8_t beep = 0;                         // Sound to make by the secondary node when a time message is received
 bool flag_timeRx = false;                 // Flag to set when a time is received from the main node
 
 s_detectionBuff bufferDetectionMsgRx[7];  // Cyclic buffer to store the times of the detections received
@@ -676,17 +677,22 @@ void sendDetectionMsg(uint32_t sensor_detection_time)
 
 /**********************************************************************
  * @brief Return the time to show received from the main node and clear
- * the flag to avoid reading it again.
+ * the flag to avoid reading it again. This function is only called by
+ * a secondary node.
  * 
+ * @param: beep sound to make by the secondary node
  * @return: time to show if it has been received; -1 if no time
  *          storaged
  */
-int32_t getTime2show(void)
+int32_t getTime2show(uint8_t *beep_sound)
 {
   int32_t t = -1;
   
   if(flag_timeRx)
+  {
     t = time2show;
+    *beep_sound = beep;
+  }
 
   flag_timeRx = false;
   return t;
@@ -740,10 +746,12 @@ void ignoreAnyDetectionRxPending(void)
  * show on its display. Only called by a main node.
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @param beep: to order the secondary node make the beep sound.
+ *              No beep = 0; simple beep = 1; double beep = 2
  * @param time2show: time to show on the secondary node's display, in
  *                   milliseconds
  */
-void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint32_t time2show)
+void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint8_t beep, uint32_t time2show)
 {
   uint8_t t_minutes = 0;
   uint16_t t_milliseconds = 0;
@@ -753,6 +761,7 @@ void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint32_t time2show)
   
   s_espnow_time_msg msg;
   msg.type = (uint8_t)TIME_MSG;
+  msg.beep = beep;
   msg.time2show_min = t_minutes;
   msg.time2show_msec = t_milliseconds;
 
@@ -946,6 +955,7 @@ void espnow_task(void)
 
         if(mainNode == &t2t_node[nodeAddress])
         {
+          beep = msg_time.beep;
           time2show = msg_time.time2show_min * 60000 + msg_time.time2show_msec;
           flag_timeRx = true;
           detection_waiting4response = false;

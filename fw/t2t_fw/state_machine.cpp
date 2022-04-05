@@ -703,7 +703,7 @@ void start_stop_mode(void)
       /* test substate changes */
       if(time_stop_ms = getNextTimeDetectionRx(&secondaryNodeAddress))
       {
-        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, time_stop_ms - time_start_ms);
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, ((time_stop_ms - time_start_ms) < best_time_race_ms)? 2 : 1, time_stop_ms - time_start_ms);
         substate = SHOW_TIME_DETECTION;
       }
       break;
@@ -715,12 +715,7 @@ void start_stop_mode(void)
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       if((time_stop_ms - time_start_ms) < best_time_race_ms)
-      {
         best_time_race_ms = time_stop_ms - time_start_ms;
-        set_buzzer_mode(DOUBLE_BEEP);
-      }
-      else
-        set_buzzer_mode(SIMPLE_BEEP);
 
       /* test substate changes */
       substate = FINISHED;
@@ -732,7 +727,7 @@ void start_stop_mode(void)
       /* test substate changes */
       if(get_button_state(BUTTON_A))
       {
-        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, 0);
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, 0, 0);
         substate = INIT_SUBSTATE;
       }
       break;
@@ -1250,7 +1245,8 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
-    int32_t time2show = getTime2show();
+    uint8_t beep = 0;
+    int32_t time2show = getTime2show(&beep);
     
     if(isAnyDetectionPending())
     {
@@ -1269,7 +1265,13 @@ void state_machine_task(void)
     }
 
     if(time2show > 0)
+    {
       showSecondaryNodeTime(t2t_mode, time2show);
+      if(beep == 1)
+        set_buzzer_mode(SIMPLE_BEEP);
+      else if (beep == 2)
+        set_buzzer_mode(DOUBLE_BEEP);
+    }
     else if(time2show == 0)
     {
       s_display_text text[] = {

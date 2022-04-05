@@ -53,12 +53,12 @@ bool isMainNodeLinked(void);
 bool isEveryWorkingNodeLinked(void);
 
 void sendDetectionMsg(uint32_t detection_time);
-int32_t getTime2show(void);
+int32_t getTime2show(uint8_t *beep_sound);
 bool isAnyDetectionRxPending(void);
 uint32_t getNextTimeDetectionRx(uint8_t *secondaryNodeAddress);
 void ignoreAnyDetectionRxPending(void);
 
-void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint32_t time2show);
+void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint8_t beep, uint32_t time2show);
 void sendESPNowLowBattMsg2MainNode(bool battLow_flag, uint16_t battVoltage);
 
 int8_t isAcceptanceCompleted(void);
