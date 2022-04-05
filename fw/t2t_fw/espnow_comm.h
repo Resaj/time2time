@@ -52,11 +52,17 @@ bool isNodeLinked(uint8_t nodeAddress);
 bool isMainNodeLinked(void);
 bool isEveryWorkingNodeLinked(void);
 
-void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request);
-void sendESPNowDetectionMsg(uint8_t nodeAddress);
-void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battVoltage);
+void sendDetectionMsg(uint32_t detection_time);
+int32_t getTime2show(void);
+bool isAnyDetectionRxPending(void);
+uint32_t getNextTimeDetectionRx(uint8_t *secondaryNodeAddress);
+void ignoreAnyDetectionRxPending(void);
+
+void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint32_t time2show);
+void sendESPNowLowBattMsg2MainNode(bool battLow_flag, uint16_t battVoltage);
 
 int8_t isAcceptanceCompleted(void);
+int8_t getMode2Join(void);
 void configNodes4WorkingMode(uint8_t t2t_mode, uint8_t *remoteNodeList, uint8_t numRemoteNodes);
 void releaseWorkingModeComm(void);
 

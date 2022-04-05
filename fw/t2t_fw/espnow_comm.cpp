@@ -50,6 +50,11 @@ typedef struct {
 } s_rxBuffer;
 
 typedef struct {
+  uint8_t nodeAddr;
+  uint32_t detectionTime;
+} s_detectionBuff;
+
+typedef struct {
   uint8_t type  : 3;
   uint8_t info  : 5;
 } s_espnow_default_msg;
@@ -70,15 +75,16 @@ typedef struct {
 } s_espnow_mode_msg;
 
 typedef struct {
-  uint8_t type        : 3;
-  uint8_t attempt_num : 3;  // Up to 8 attempts to send the message
-  uint8_t reserved    : 2;
+  uint8_t type          : 3;
+  uint8_t reserved      : 5;
+  uint8_t elapsed_time;       // Elapsed time between the detection and the tx of the msg, in ms
 } s_espnow_detection_msg;
 
 typedef struct {
-  uint8_t type        : 3;
-  uint8_t reserved    : 5;
-  uint16_t time2show;     // Partial time in milliseconds. Up to 65 sec
+  uint8_t type          : 3;
+  uint8_t reserved      : 2;
+  uint8_t time2show_min : 3;  // Partial time in minutes. Up to 7 minutes
+  uint16_t time2show_msec;    // Partial time in milliseconds. Up to 59999 milliseconds
 } s_espnow_time_msg;
 
 typedef struct {
@@ -103,19 +109,30 @@ typedef enum {
  * Local variables
  *********************************************************************/
 
-uint32_t t_origen_ms = 0;       // Origin time to reference the initial linking and enable it again after leaving a working mode
+uint32_t t_origen_ms = 0;                 // Origin time to reference the initial linking and enable it again after leaving a working mode
 const uint8_t nNodes = sizeof(MyMACAddrList)/sizeof(MyMACAddrList[0]); // Number of nodes available in the MAC list
-s_t2t_node t2t_node[nNodes];    // Matrix to store the information of the nodes. Up to 8 nodes
-s_t2t_node *thisNode = NULL;    // Pointer to the node position at t2t_node
-s_t2t_node *mainNode = NULL;    // Pointer to the main node position at t2t_node
-                                // Determines the node that manages the total times and the functionament mode
-                                // It it set when selecting the functionament mode.
-s_rxBuffer rxBuffer[8];         // Cyclic buffer to store the received messages
-uint8_t nextMsgBuff2write = 0;  // Next byte to write in the rx buffer
-uint8_t nextMsgBuff2read = 0;   // Next byte to read from the rx buffer
-uint8_t mode2join = 0;          // Mode to join when a request must be sent
-int8_t flag_modeReq[nNodes];    // Variable to save the mode message request. 1 for waiting accceptance; 0 is nothing
-bool modeRejected = false;      // Variable to indicate when a mode has been rejected by at least one of the remote nodes
+s_t2t_node t2t_node[nNodes];              // Matrix to store the information of the nodes. Up to 8 nodes
+s_t2t_node *thisNode = NULL;              // Pointer to the node position at t2t_node
+s_t2t_node *mainNode = NULL;              // Pointer to the main node position at t2t_node
+                                          // Determines the node that manages the total times and the functionament mode
+                                          // It it set when selecting the functionament mode.
+s_rxBuffer rxBuffer[8];                   // Cyclic buffer to store the received messages
+uint8_t nextMsgBuff2write = 0;            // Next byte to write in the rx buffer
+uint8_t nextMsgBuff2read = 0;             // Next byte to read from the rx buffer
+
+uint8_t mode2join = 0;                    // Mode to join when a request must be sent
+int8_t flag_modeReq[nNodes];              // Variable to save the mode message request. 1 for waiting accceptance; 0 is nothing
+bool modeRejected = false;                // Variable to indicate when a mode has been rejected by at least one of the remote nodes
+
+uint32_t detection_time = 0;              // Detection time to send to the main node
+bool detection_waiting4response = false;  // Flag to manage the retransmissions of the detection_time
+uint32_t last_detectionMsg_Tx = 0;        // Last time when a detection message was sent
+uint32_t time2show = 0;                   // Time to show when a time message is received from the main node
+bool flag_timeRx = false;                 // Flag to set when a time is received from the main node
+
+s_detectionBuff bufferDetectionMsgRx[7];  // Cyclic buffer to store the times of the detections received
+uint8_t nextDetRx2write = 0;              // Next time to write in the storaging buffer
+uint8_t nextDetRx2read = 0;               // Next time to read from the storaging buffer
 
 /**********************************************************************
  * Local function declarations
@@ -128,9 +145,12 @@ uint8_t config_node(void);
 void OnDataSent(const uint8_t *MAC_Addr, esp_now_send_status_t state);
 void OnDataRecv(const uint8_t *MAC_Addr, const uint8_t *receivedData, int32_t len);
 void sendESPNowLinkMsg(uint8_t nodeAddress, bool ack);
+void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request);
+void sendESPNowDetectionMsg2MainNode(uint32_t detection_time);
 void linking_management(void);
 void mode_request_management(void);
 void setThisNodeAsIdle(void);
+void detection_time_management(void);
 
 /**********************************************************************
  * Local functions
@@ -284,6 +304,42 @@ void sendESPNowLinkMsg(uint8_t nodeAddress, bool ack)
 }
 
 /**********************************************************************
+ * @brief Sends an ESPNow message to set the mode of a remote linked
+ * node.
+ * 
+ * @param nodeAddress: address of the remote node. Range: [0..7]
+ * @param work_mode: working mode. Range [0..7]
+ * @param request: Request from main (1), answer to accept from
+ *                 secondary (0) or release node from main (0)
+ */
+void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request)
+{
+  s_espnow_mode_msg msg;
+  msg.type = (uint8_t)MODE_MSG;
+  msg.work_mode = work_mode;
+  msg.request = request;
+  msg.ref_time = (uint16_t)(get_currentTimeMs() % get_led_period());
+
+  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+/**********************************************************************
+ * @brief Sends an ESPNow message to the main node with the sensor time
+ * detection. Only called by a secondary node. It requires an answer
+ * message with the time to show.
+ * 
+ * @param detection_time: time of detection in milliseconds
+ */
+void sendESPNowDetectionMsg2MainNode(uint32_t detection_time)
+{
+  s_espnow_detection_msg msg;
+  msg.type = (uint8_t)DETECTION_MSG;
+  msg.elapsed_time = (uint8_t)(get_currentTimeMs() - detection_time);
+
+  (void)esp_now_send(mainNode->MACAddr, (uint8_t *) &msg, sizeof(msg));
+}
+
+/**********************************************************************
  * @brief Manage the linking messages to maintain the communication
  * with the other nodes alive. This function is called periodically
  * when the node is the main one.
@@ -312,9 +368,7 @@ void linking_management(void)
       {
         if(t_now - t2t_node[index].lastRxTime_ms > 4500)
           t2t_node[index].linked = false;
-        else if(t_now - t2t_node[index].lastRxTime_ms > 2000 &&
-                t_now - t2t_node[index].lastTxTime_ms > 2000 && 
-                thisNode == mainNode)
+        else if((t_now - t2t_node[index].lastRxTime_ms > 2000 || t_now - t2t_node[index].lastTxTime_ms > 2000) && thisNode == mainNode)
           sendESPNowLinkMsg(index, true); // Request ACK. The secondary node won't answer with link messages if it's not required
       }
     }
@@ -424,6 +478,33 @@ void mode_request_management(void)
 void setThisNodeAsIdle(void)
 {
   thisNode->working = false;
+}
+
+/**********************************************************************
+ * @brief Send detection time retransmissions if no answer is received.
+ * Retry until receiving an answer, up to 7 retransmissions. This
+ * function is called periodically when the node is secondary.
+ */
+void detection_time_management(void)
+{
+  static uint8_t retx_attempts = 0;
+  
+  if(detection_waiting4response && (get_currentTimeMs() - last_detectionMsg_Tx) >= 20)
+  {
+    if(retx_attempts == 7)
+    {
+      //mainNode->linked = false;
+      detection_waiting4response = false;
+    }
+    else
+    {
+      sendESPNowDetectionMsg2MainNode(detection_time);
+      last_detectionMsg_Tx = get_currentTimeMs();
+      retx_attempts++;
+    }
+  }
+  else if(!detection_waiting4response)
+    retx_attempts = 0;
 }
 
 /**********************************************************************
@@ -578,57 +659,121 @@ bool isEveryWorkingNodeLinked(void)
 }
 
 /**********************************************************************
- * @brief Sends an ESPNow message to set the mode of a remote linked
- * node.
+ * @brief Call the function to set the message to send with the time of
+ * detection and set the options to try again some more time in case
+ * that any answer isn't received.
+ * 
+ * @param sensor_detection_time: time of detection in milliseconds
+ */
+void sendDetectionMsg(uint32_t sensor_detection_time)
+{
+  sendESPNowDetectionMsg2MainNode(sensor_detection_time);
+
+  detection_time = sensor_detection_time;
+  detection_waiting4response = true;
+  last_detectionMsg_Tx = get_currentTimeMs();
+}
+
+/**********************************************************************
+ * @brief Return the time to show received from the main node and clear
+ * the flag to avoid reading it again.
+ * 
+ * @return: time to show if it has been received; -1 if no time
+ *          storaged
+ */
+int32_t getTime2show(void)
+{
+  int32_t t = -1;
+  
+  if(flag_timeRx)
+    t = time2show;
+
+  flag_timeRx = false;
+  return t;
+}
+
+/**********************************************************************
+ * @brief Check if there are any detections received pending of being
+ * processed. This function is only used by the main node.
+ *
+ * @return: true if there are detections pending; false if not
+ */
+bool isAnyDetectionRxPending(void)
+{
+  return (nextDetRx2write != nextDetRx2read);
+}
+
+/**********************************************************************
+ * @brief Get time and address of the secondary node for the next
+ * detection received to be processed. This function is only used by
+ * the main node.
+ *
+ * @param secondaryNodeAddress: address of the secondary node that
+ *                              sends the message
+ * @return: 0 if no detections pending; a positive number if yes
+ */
+uint32_t getNextTimeDetectionRx(uint8_t *secondaryNodeAddress)
+{
+  uint32_t nextTimeDetection = 0;
+
+  if(isAnyDetectionRxPending())
+  {
+    *secondaryNodeAddress = bufferDetectionMsgRx[nextDetRx2read].nodeAddr;
+    nextTimeDetection = bufferDetectionMsgRx[nextDetRx2read].detectionTime;
+    nextDetRx2read++;
+    nextDetRx2read = nextDetRx2read % (sizeof(bufferDetectionMsgRx)/sizeof(bufferDetectionMsgRx[0]));
+  }
+
+  return nextTimeDetection;
+}
+
+/**********************************************************************
+ * @brief Ignores any received detection pending of being processed
+ */
+void ignoreAnyDetectionRxPending(void)
+{
+  nextDetRx2read = nextDetRx2write;
+}
+
+/**********************************************************************
+ * @brief Sends an ESPNow message to a secondary node with the time to
+ * show on its display. Only called by a main node.
  * 
  * @param nodeAddress: address of the remote node. Range: [0..7]
- * @param work_mode: working mode. Range [0..7]
- * @param request: Request from main (1), answer to accept from
- *                 secondary (0) or release node from main (0)
+ * @param time2show: time to show on the secondary node's display, in
+ *                   milliseconds
  */
-void sendESPNowModeMsg(uint8_t nodeAddress, uint8_t work_mode, bool request)
+void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint32_t time2show)
 {
-  s_espnow_mode_msg msg;
-  msg.type = (uint8_t)MODE_MSG;
-  msg.work_mode = work_mode;
-  msg.request = request;
-  msg.ref_time = (uint16_t)(get_currentTimeMs() % get_led_period());
+  uint8_t t_minutes = 0;
+  uint16_t t_milliseconds = 0;
+
+  t_milliseconds = (uint16_t)(time2show % 60000);
+  t_minutes = (uint8_t)(time2show - t_milliseconds)/60000;
+  
+  s_espnow_time_msg msg;
+  msg.type = (uint8_t)TIME_MSG;
+  msg.time2show_min = t_minutes;
+  msg.time2show_msec = t_milliseconds;
 
   (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
 /**********************************************************************
- * @brief Sends an ESPNow message with the detection of the sensor and
- * the attempt number. It requires an answer message.
+ * @brief Sends an ESPNow message to the main node with a low battery
+ * warning. The message includes the voltage of the battery.
  * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
- */
-void sendESPNowDetectionMsg(uint8_t nodeAddress)
-{
-  s_espnow_default_msg msg;
-  msg.type = (uint8_t)DETECTION_MSG;
-  //todo: create a new structure for this message
-  //todo: set the attemp number
-
-  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
-}
-
-/**********************************************************************
- * @brief Sends an ESPNow message with a low battery warning. The
- * message includes the voltage of the battery.
- * 
- * @param nodeAddress: address of the remote node. Range: [0..7]
  * @param battLow_flag: true if the battery is undervoltage; false if not
  * @param battVoltage: voltage of the battery (millivolts)
  */
-void sendESPNowLowBattMsg(uint8_t nodeAddress, bool battLow_flag, uint16_t battVoltage)
+void sendESPNowLowBattMsg2MainNode(bool battLow_flag, uint16_t battVoltage)
 {
   s_espnow_lowBattery_msg msg;
   msg.type = (uint8_t)LOWBATTERY_MSG;
   msg.lowBatt = battLow_flag? 1 : 0;
   msg.battVoltage = (uint8_t)((battVoltage - 2700)/100);
 
-  (void)esp_now_send(t2t_node[nodeAddress].MACAddr, (uint8_t *) &msg, sizeof(msg));
+  (void)esp_now_send(mainNode->MACAddr, (uint8_t *) &msg, sizeof(msg));
 }
 
 /**********************************************************************
@@ -650,6 +795,19 @@ int8_t isAcceptanceCompleted(void)
   }
 
   return ACCEPTANCE_COMPLETED;
+}
+
+/**********************************************************************
+ * @brief Returns the mode to join when this is the secondary node
+ * 
+ * @return: 0 or greater if this is a secondary node; -1 if not
+ */
+int8_t getMode2Join(void)
+{
+  if(thisNode == mainNode) // Error! This function must be called only by a secondary node
+    return -1;
+
+  return mode2join;
 }
 
 /**********************************************************************
@@ -775,15 +933,23 @@ void espnow_task(void)
         s_espnow_detection_msg msg_detection;
         memcpy(&msg_detection, rxBuffer[nextMsgBuff2read].msg, msgLength);
 
-        //todo: fill
-      
+        bufferDetectionMsgRx[nextDetRx2write].nodeAddr = nodeAddress;
+        bufferDetectionMsgRx[nextDetRx2write].detectionTime = t2t_node[nodeAddress].lastRxTime_ms - msg_detection.elapsed_time;
+        nextDetRx2write++;
+        nextDetRx2write = nextDetRx2write % (sizeof(bufferDetectionMsgRx)/sizeof(bufferDetectionMsgRx[0]));
+
         break;
         
       case TIME_MSG:
         s_espnow_time_msg msg_time;
         memcpy(&msg_time, rxBuffer[nextMsgBuff2read].msg, msgLength);
 
-        //todo: fill
+        if(mainNode == &t2t_node[nodeAddress])
+        {
+          time2show = msg_time.time2show_min * 60000 + msg_time.time2show_msec;
+          flag_timeRx = true;
+          detection_waiting4response = false;
+        }
       
         break;
         
@@ -808,9 +974,10 @@ void espnow_task(void)
 
   if(thisNode == mainNode) // If this is the main node, manage mode messages
     mode_request_management(); // Send mode requests and check acceptances
+  else // thisNode != mainNode
+    detection_time_management(); // Check the required retransmissions of the detection messages
 }
 
-//todo: comunicar detección y muestra de tiempos
 //todo: gestión del orden de los nodos desde la máquina de estados, al seleccionarlos
 //todo: include a time synchronization protocol
   // https://encyclopedia.pub/4192

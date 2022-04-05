@@ -98,6 +98,7 @@ void start_stop_mode(void);
 void toast_mode(void);
 void show_t2t_info(void);
 void set_led_from_diags(bool isModeRunning);
+void showSecondaryNodeTime(mode2run t2t_mode, uint16_t time2show);
 void go_to_sleep(void);
 
 /**********************************************************************
@@ -106,9 +107,9 @@ void go_to_sleep(void);
 
 program_substate substate = INIT_SUBSTATE;
 
-uint16_t x_time_mode_target_laps = 3;
-uint32_t best_time_lap_ms = BEST_TIME_INIT_VALUE;
-uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
+static uint16_t x_time_mode_target_laps = 3;
+static uint32_t best_time_lap_ms = BEST_TIME_INIT_VALUE;
+static uint32_t best_time_total_ms = BEST_TIME_INIT_VALUE;
 
 s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , func                 , next_menu_state , first_subtate */
@@ -163,6 +164,7 @@ void show_main_menu(uint8_t group_num)
  */
 void normal_lap_time_mode(void)
 {
+  static uint32_t time_detection = 0;
   static uint32_t time_last_lap_ms = 0;
   static uint32_t time_last_detection = 0;
   static s_display_text text[] = {
@@ -181,7 +183,7 @@ void normal_lap_time_mode(void)
       sprintf(text[1].text, "Ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
-      release_sensor_detection();
+      ignoreAnyDetectionPending();
       
       /* test substate changes */
       substate = WAIT_FOR_START;
@@ -191,7 +193,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
       {
         time_last_detection = time_detection;
         set_buzzer_mode(SIMPLE_BEEP);
@@ -211,7 +213,7 @@ void normal_lap_time_mode(void)
       /* test substate changes */
       if(t_now - time_last_detection > 1000)
       {
-        release_sensor_detection();
+        ignoreAnyDetectionPending();
         substate = WAIT_FOR_DETECTION;
       }
       break;
@@ -223,7 +225,7 @@ void normal_lap_time_mode(void)
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
         substate = SHOW_TIME_DETECTION;
       break;
     
@@ -251,9 +253,9 @@ void normal_lap_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(get_currentTimeMs() - time_detection > 1000)
+      if(get_currentTimeMs() - time_last_detection > 1000)
       {
-        release_sensor_detection();
+        ignoreAnyDetectionPending();
         substate = DETECTED_AND_SENSING_ACTIVED;
       }
       break;
@@ -262,7 +264,7 @@ void normal_lap_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
         substate = SHOW_TIME_DETECTION;
       else if(get_currentTimeMs() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
@@ -342,6 +344,7 @@ bool x_laps_time_mode_laps_selection(void)
  */
 void x_laps_time_mode(void)
 {
+  static uint32_t time_detection = 0;
   static uint32_t time_init = 0;
   static uint32_t time_last_detection = 0;
   static uint16_t laps_to_go = 0;
@@ -364,7 +367,7 @@ void x_laps_time_mode(void)
       sprintf(text[1].text, "Ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
-      release_sensor_detection();
+      ignoreAnyDetectionPending();
       
       /* test substate changes */
       substate = WAIT_FOR_START;
@@ -374,7 +377,7 @@ void x_laps_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
       {
         time_init = time_detection;
         time_last_detection = time_init;
@@ -395,7 +398,7 @@ void x_laps_time_mode(void)
       /* test substate changes */
       if(t_now - time_detection > 1000)
       {
-        release_sensor_detection();
+        ignoreAnyDetectionPending();
         substate = WAIT_FOR_DETECTION;
       }
     
@@ -411,7 +414,7 @@ void x_laps_time_mode(void)
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
         substate = SHOW_TIME_DETECTION;
       break;
     }
@@ -458,7 +461,7 @@ void x_laps_time_mode(void)
           substate = SHOW_FINAL_TIME;
         else
         {
-          release_sensor_detection();
+          ignoreAnyDetectionPending();
           substate = DETECTED_AND_SENSING_ACTIVED;
         }
       }
@@ -468,7 +471,7 @@ void x_laps_time_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
         substate = SHOW_TIME_DETECTION;
       else if(get_currentTimeMs() - time_last_detection > 2000)
         substate = WAIT_FOR_DETECTION;
@@ -654,45 +657,84 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
  */
 void start_stop_mode(void)
 {
-  //todo: program start/stop operating mode
+  static uint32_t time_start_ms = 0;
+  static uint32_t time_stop_ms = 0;
+  static uint32_t best_time_race_ms = BEST_TIME_INIT_VALUE;
+  static uint8_t secondaryNodeAddress = 0;
 
   static s_display_text text[] = {
-    /* text                  , pos_X , pos_Y , font      , aligment */
-    {  "Press A to send msg" , 0     , 0     , MENU_FONT , ALIGN_LEFT },
-    {  "Press C to exit"     , 0     , 15    , MENU_FONT , ALIGN_LEFT },
-    {  ""                    , 20    , 30    , MENU_FONT , ALIGN_LEFT },
-    {  ""                    , 20    , 45    , MENU_FONT , ALIGN_LEFT },
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
   switch(substate)
   {
     case INIT_SUBSTATE:
       /* substate actions */
-//      sprintf(text[2].text, "%u", espnow_error);
-//      sprintf(text[3].text, "%u", espnow_add_peer_error);
+      sprintf(text[0].text, "0.000");
+      sprintf(text[1].text, "Start ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      ignoreAnyDetectionPending();
+
+      /* test substate changes */
+      substate = WAIT_FOR_START;
+      break;
+
+    case WAIT_FOR_START:
+      /* substate actions */
+
+      /* test substate changes */
+      if(time_start_ms = getNextTimeDetection())
+      {
+        ignoreAnyDetectionRxPending();
+        set_buzzer_mode(SIMPLE_BEEP);
+        substate = WAIT_FOR_DETECTION;
+      }
+      break;
+      
+    case WAIT_FOR_DETECTION:
+      /* substate actions */
+      sprintf(text[0].text, "%.3f", (get_currentTimeMs() - time_start_ms)/1000.0);
+      sprintf(text[1].text, "Start/Stop running");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      /* test substate changes */
+      if(time_stop_ms = getNextTimeDetectionRx(&secondaryNodeAddress))
+      {
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, time_stop_ms - time_start_ms);
+        substate = SHOW_TIME_DETECTION;
+      }
+      break;
+
+    case SHOW_TIME_DETECTION:
+      /* substate actions */
+      sprintf(text[0].text, "%.3f", (time_stop_ms - time_start_ms)/1000.0);
+      sprintf(text[1].text, "Press A to restart");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      if((time_stop_ms - time_start_ms) < best_time_race_ms)
+      {
+        best_time_race_ms = time_stop_ms - time_start_ms;
+        set_buzzer_mode(DOUBLE_BEEP);
+      }
+      else
+        set_buzzer_mode(SIMPLE_BEEP);
 
       /* test substate changes */
       substate = FINISHED;
       break;
-      
+
     case FINISHED:
       /* substate actions */
-/*      if(get_button_state(BUTTON_A))
-      {
-        msg.last_time_sensor_detection = get_currentTimeMs();
-        sendESPNowData(msg);
-      }
-
-      if(incoming_msg.last_time_sensor_detection != 0)
-      {
-        sprintf(text[2].text, "%u", incoming_msg.nodeAddr);
-        sprintf(text[3].text, "%.3f", incoming_msg.last_time_sensor_detection/1000.0);
-        display_set_data(text, sizeof(text)/sizeof(s_display_text));
-        incoming_msg.last_time_sensor_detection = 0;
-      }*/
 
       /* test substate changes */
+      if(get_button_state(BUTTON_A))
+      {
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, 0);
+        substate = INIT_SUBSTATE;
+      }
       break;
       
     default:
@@ -708,6 +750,7 @@ void start_stop_mode(void)
  */
 void toast_mode(void)
 {
+  static uint32_t time_detection = 0;
   static uint32_t time_init = 0;
   static uint32_t best_toast_time_ms = BEST_TIME_INIT_VALUE;
 
@@ -727,7 +770,7 @@ void toast_mode(void)
       sprintf(text[1].text, "Ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
       
-      release_sensor_detection();
+      ignoreAnyDetectionPending();
       
       /* test substate changes */
       substate = WAIT_FOR_START;
@@ -737,7 +780,7 @@ void toast_mode(void)
       /* substate actions */
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
       {
         time_init = time_detection;
         set_default_sensor_active_edge();
@@ -758,7 +801,7 @@ void toast_mode(void)
       /* test substate changes */
       if(t_now - time_detection > 1000)
       {
-        release_sensor_detection();
+        ignoreAnyDetectionPending();
         substate = WAIT_FOR_DETECTION;
       }
 
@@ -777,7 +820,7 @@ void toast_mode(void)
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
 
       /* test substate changes */
-      if(sensor_interrupt_flag)
+      if(time_detection = getNextTimeDetection())
         substate = SHOW_FINAL_TIME;
 
       if(get_button_state(BUTTON_B))
@@ -988,6 +1031,47 @@ void set_led_from_diags(bool isModeRunning)
   }
 }
 
+
+/**********************************************************************
+ * @brief Show the time in the secondary node if any time has been
+ * received from the main node
+ * 
+ * @param t2t_node: running mode
+ * @param time2show: time to show in milliseconds
+ */
+void showSecondaryNodeTime(mode2run t2t_mode, uint16_t time2show)
+{
+  s_display_text timeText[] = {
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
+  };
+
+  if(time2show > 0)
+  {
+    switch(t2t_mode)
+    {
+      case NORMAL_LAP_TIME_MODE:
+        //todo: fill
+        break;
+
+      case X_LAPS_TIME_MODE:
+        //todo: fill
+        break;
+
+      case START_STOP_MODE:
+        sprintf(timeText[0].text, "%.3f", time2show/1000.0);
+        sprintf(timeText[1].text, "Final time");
+        display_set_data(timeText, sizeof(timeText)/sizeof(s_display_text));
+        break;
+
+      default:
+        /* Do nothing */
+        break;
+    }
+  }
+}
+
 /**********************************************************************
  * @brief Go-to-sleep function. The node goes to sleep and the
  * peripherals are disabled to avoid conmsumption and let a faster
@@ -1033,8 +1117,10 @@ void state_machine_task(void)
       s_display_text text[] = {
         /* Text             , pos_X , pos_Y , font      , aligment   */
         {  "Secondary node" , 0     , 8     , MENU_FONT , ALIGN_LEFT  },
+        {  "Ready to start" , 0     , 22    , MENU_FONT , ALIGN_LEFT  },
       };
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
+      t2t_mode = (mode2run)getMode2Join();
     }
     wasMainNode = isMainNode;
   }
@@ -1135,6 +1221,7 @@ void state_machine_task(void)
         /* test state changes */
         if(get_button_state(BUTTON_C))
           state = INIT_STATE;
+        break;
 
       case SHOW_INFO:
         /* state actions */
@@ -1163,10 +1250,38 @@ void state_machine_task(void)
   }
   else // This node is being controlled by another one
   {
+    int32_t time2show = getTime2show();
+    
+    if(isAnyDetectionPending())
+    {
+      switch(t2t_mode)
+      {
+        case NORMAL_LAP_TIME_MODE:
+        case X_LAPS_TIME_MODE:
+        case START_STOP_MODE:
+          sendDetectionMsg(getNextTimeDetection());
+          break;
+  
+        default:
+          /* Do nothing */
+          break;
+      }
+    }
+
+    if(time2show > 0)
+      showSecondaryNodeTime(t2t_mode, time2show);
+    else if(time2show == 0)
+    {
+      s_display_text text[] = {
+        /* Text             , pos_X , pos_Y , font      , aligment   */
+        {  "Secondary node" , 0     , 8     , MENU_FONT , ALIGN_LEFT  },
+        {  "Ready to start" , 0     , 22    , MENU_FONT , ALIGN_LEFT  },
+      };
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+    }
+
     if(!isMainNodeLinked()) // If comm with main node is lost, exit from mode
       releaseWorkingModeComm();
-      
-    //todo: reportar detecciones y representar tiempos que mande el nodo principal
   }
 
   /* General function for the RGB led control */
