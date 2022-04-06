@@ -22,19 +22,15 @@
 #include <stdint.h>
 
 /**********************************************************************
- * Global variables
- *********************************************************************/
-
-extern bool sensor_interrupt_flag;
-extern uint32_t time_detection;
-
-/**********************************************************************
  * Global functions
  *********************************************************************/
 
 void pass_sensor_init(void);
-void release_sensor_detection(void);
+void disable_pass_sensor(bool lock);
 void set_default_sensor_active_edge(void);
 void invert_sensor_active_edge(void);
+bool isAnyDetectionPending(void);
+uint32_t getNextTimeDetection(void);
+void ignoreAnyDetectionPending(void);
 
 #endif /* PASS_SENSOR_H */

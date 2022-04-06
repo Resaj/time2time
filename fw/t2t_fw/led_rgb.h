@@ -40,9 +40,12 @@ typedef enum
 void rgb_led_init(void);
 void set_rgb_led_on_mode(e_rgb_color rgb_color, uint16_t brightness);
 void set_rgb_led_off_mode(void);
-void set_rgb_led_blink_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up);
-void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up);
-void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_up);
+void set_rgb_led_blink_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_on);
+void set_rgb_led_triangle_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_on);
+void set_rgb_led_sinusoidal_wave_mode(e_rgb_color rgb_color, uint16_t brightness, uint16_t period, uint16_t period_on);
+void set_led_time_offset(uint32_t msgRxTime, uint16_t ref_time);
+uint16_t get_led_period(void);
+void clear_led_time_offset(void);
 void led_task(void);
 
 #endif /* LED_RGB_H */

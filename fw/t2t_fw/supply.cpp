@@ -26,8 +26,9 @@
 #define MAX_ADC_VOLT      3300u // Maximum voltage allowed at the ADC input pin (millivolts)
 #define BATT_MONITOR_R1   47u   // First resistor (to battery) of the divisor to monitor the battery (kOhmios)
 #define BATT_MONITOR_R2   120u  // Second resistor (to ground) of the divisor to monitor the battery (kOhmios)
+#define BATT_VOLT_ALARM   3500u // Minimum battery voltage to active low battery warning (millivolts)
 
-#define ALPHA_LP_FILTER   4.0/5 // Quantity of the above battery measure to impact in the low pass filter
+#define ALPHA_LP_FILTER   4.0/5 // Quantity of the battery measures to impact in the low pass filter
 
 /**********************************************************************
  * Defines
@@ -42,6 +43,14 @@
 
 uint16_t g_batt_voltage = 0; // millivolts
 e_batt_charger_diag batt_charger_diag = NO_INPUT_POWER;
+
+/**********************************************************************
+ * Local functions declarations
+ *********************************************************************/
+
+uint16_t read_batteryVoltage(void);
+void measure_batteryVoltage(void);
+void check_battery_charger(void);
 
 /**********************************************************************
  * Local functions
@@ -121,10 +130,32 @@ void supply_task(void)
 }
 
 /**********************************************************************
+ * @brief Returns the voltage of the battery in millivolts
+ * 
+ * @return: voltage of the battery (millivolts)
+ */
+uint16_t get_battery_voltage(void)
+{
+  return g_batt_voltage;
+}
+
+/**********************************************************************
+ * @brief Compare the battery voltage to determine wether it is
+ * undervoltage or not.
+ * 
+ * @return: true if the battery is undervoltage; false if not
+ */
+bool is_battery_undervoltage(void)
+{
+  return (g_batt_voltage < BATT_VOLT_ALARM);
+}
+
+/**********************************************************************
  * @brief Initializes the 12V supply, controlled with a enable pin
  */
 void power_12v_init(void)
 {
+  gpio_hold_dis((gpio_num_t)PIN_SLEEP_12V); // Release pin held before a possible deep sleep
   pinMode(PIN_SLEEP_12V, OUTPUT);
   power_12v_enable();
 }
@@ -139,8 +170,13 @@ void power_12v_enable(void)
 
 /**********************************************************************
  * @brief Disable the 12V supply
+ * 
+ * @param lock: lock the pin after disabling
  */
-void power_12v_disable(void)
+void power_12v_disable(bool lock)
 {
   digitalWrite(PIN_SLEEP_12V, POWER_12V_OFF);
+
+  if(lock)
+    gpio_hold_en((gpio_num_t)PIN_SLEEP_12V);
 }

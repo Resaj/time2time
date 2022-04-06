@@ -18,6 +18,7 @@
 #include "buttons.h"
 #include "buzzer.h"
 #include "display.h"
+#include "espnow_comm.h"
 #include "led_rgb.h"
 #include "pass_sensor.h"
 #include "scheduler.h"
@@ -44,15 +45,20 @@ typedef struct {
  * Local variables
  *********************************************************************/
 
+uint32_t t_now_ms = 0;
 hw_timer_t *timer = NULL;
 portMUX_TYPE scheduler_critical_zone = portMUX_INITIALIZER_UNLOCKED;  // Needed for the interruption
 uint8_t interruptCounter;
 
 /**********************************************************************
- * Global variables
+ * Local functions declarations
  *********************************************************************/
 
-uint32_t t_now_ms = 0;
+void IRAM_ATTR scheduler_isr(void);
+void scheduler_init(void);
+void tasks_10ms(void);
+void tasks_50ms(void);
+void tasks_500ms(void);
 
 /**********************************************************************
  * Local functions
@@ -89,9 +95,9 @@ void tasks_10ms(void)
 {
   buttons_task();
   buzzer_task();
+  espnow_task();
   state_machine_task();
   led_task();
-  //todo: manage ESP-Now communication
 }
 
 /**********************************************************************
@@ -126,6 +132,7 @@ void init_setup_task(void)
   buzzer_init();
   display_init();
   rgb_led_init();
+  espnow_comm_init();
 
   scheduler_init();
 }
@@ -146,17 +153,32 @@ void scheduler_task(void)
 
   if (interruptCounter > 0)
   {
+    uint32_t t_now = 0;
+    
     portENTER_CRITICAL(&scheduler_critical_zone);
     interruptCounter--;
     portEXIT_CRITICAL(&scheduler_critical_zone);
- 
-    for(int8_t i = 0; i < num_timers; i++)
+
+    t_now = get_currentTimeMs();
+    
+    for(int8_t i=0; i < num_timers; i++)
     {
-      if(t_now_ms - timer_scheduler[i].t_last_execution >= timer_scheduler[i].period_ms)
+      if(t_now - timer_scheduler[i].t_last_execution >= timer_scheduler[i].period_ms)
       {
-        timer_scheduler[i].t_last_execution = t_now_ms;
+        timer_scheduler[i].t_last_execution = t_now;
         timer_scheduler[i].execute_tasks();
       }
     }
   }
+}
+
+/**********************************************************************
+ * @brief Returns the current time since the start of the program, in
+ * milliseconds
+ * 
+ * @return: time in milliseconds
+ */
+uint32_t get_currentTimeMs(void)
+{
+  return t_now_ms;
 }

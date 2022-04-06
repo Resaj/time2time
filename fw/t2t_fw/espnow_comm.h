@@ -2,7 +2,7 @@
  * Project: Time2time
  * 
  * File description: This header file contains the parameters and 
- * functions for monitoring the battery voltage and control its charge
+ * functions for the ESP-Now communication between ESP32 modules
  * 
  * Author: Rubén Espino San José
  * Puma Pride Robotics Team
@@ -11,32 +11,21 @@
  * International (CC BY-NC-SA 4.0) 
  *********************************************************************/
 
-#ifndef SUPPLY_H
-#define SUPPLY_H
+#ifndef ESPNOW_COMM_H
+#define ESPNOW_COMM_H
 
 /**********************************************************************
  * Includes
  *********************************************************************/
 
-#include "Arduino.h"
 
 /**********************************************************************
  * Defines & enums
  *********************************************************************/
 
-#define LOCK_POWER_12V_PIN    true
-#define NO_LOCK_POWER_12_PIN  false
-
-typedef enum
-{
-  // (STAT1 << 2) + (STAT2 << 1) + PG
-  TEMP_OR_TIMER_FAULT = 0,  // 0 - Temperature fault or timer fault
-  PRECONDITIONING     = 2,  // 2 - Preconditioning, constant current or constant voltage
-  LOW_BATTERY_OUTPUT  = 3,  // 3 - Low battery output
-  CHARGE_COMPLETE     = 4,  // 4 - Charge complete
-  NO_BATTERY          = 6,  // 6 - Shutdown (VDD = VIN) or no battery present
-  NO_INPUT_POWER      = 7   // 7 - Shutdown (VDD = VBAT) or no input power present
-} e_batt_charger_diag;
+#define ACCEPTANCE_REJECTED     -1
+#define ACCEPTANCE_UNCOMPLETED  0
+#define ACCEPTANCE_COMPLETED    1
 
 /**********************************************************************
  * Global configuration parameters
@@ -47,19 +36,38 @@ typedef enum
  * Global variables
  *********************************************************************/
 
-extern uint16_t g_batt_voltage; // millivolts
-extern e_batt_charger_diag batt_charger_diag;
 
 /**********************************************************************
  * Global functions
  *********************************************************************/
 
-void batt_monitor_init(void);
-void supply_task(void);
-uint16_t get_battery_voltage(void);
-bool is_battery_undervoltage(void);
-void power_12v_init(void);
-void power_12v_enable(void);
-void power_12v_disable(bool lock);
+void espnow_comm_init(void);
 
-#endif /* SUPPLY_H */
+uint8_t getNumberOfNodes(void);
+uint8_t getThisNodeAddr(void);
+bool getNcheckMACAddr(char* macAddr);
+bool isThisTheMainNode(void);
+uint8_t getLinkedNodes(uint8_t *nodes);
+bool isNodeLinked(uint8_t nodeAddress);
+bool isMainNodeLinked(void);
+bool isEveryWorkingNodeLinked(void);
+
+void sendDetectionMsg(uint32_t detection_time);
+int32_t getTime2show(uint8_t *beep_sound);
+bool isAnyDetectionRxPending(void);
+uint32_t getNextTimeDetectionRx(uint8_t *secondaryNodeAddress);
+void ignoreAnyDetectionRxPending(void);
+
+void sendESPNowTimeMsg2MainNode(uint8_t nodeAddress, uint8_t beep, uint32_t time2show);
+void sendESPNowLowBattMsg2MainNode(bool battLow_flag, uint16_t battVoltage);
+
+int8_t isAcceptanceCompleted(void);
+int8_t getMode2Join(void);
+void configNodes4WorkingMode(uint8_t t2t_mode, uint8_t *remoteNodeList, uint8_t numRemoteNodes);
+void releaseWorkingModeComm(void);
+
+void setThisNodeAsBusy(void);
+
+void espnow_task(void);
+
+#endif /* ESPNOW_COMM_H */

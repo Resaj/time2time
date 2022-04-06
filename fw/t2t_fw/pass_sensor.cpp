@@ -33,15 +33,18 @@
 
 portMUX_TYPE sensor_critical_zone = portMUX_INITIALIZER_UNLOCKED; // Needed for the interruption
 
+uint32_t bufferTimeDetection[20]; // Cyclic buffer to store the times of the detections
+uint8_t nextTimeDet2write = 0;    // Next time to write in the storaging buffer
+uint8_t nextTimeDet2read = 0;     // Next time to read from the storaging buffer
+
 /**********************************************************************
- * Global functions
+ * Local functions declarations
  *********************************************************************/
 
-bool sensor_interrupt_flag = false;
-uint32_t time_detection = 0;
+void IRAM_ATTR sensor_isr(void);
 
 /**********************************************************************
- * Global functions
+ * Local functions
  *********************************************************************/
 
 /**********************************************************************
@@ -52,26 +55,16 @@ void IRAM_ATTR sensor_isr(void)
 {
   portENTER_CRITICAL_ISR(&sensor_critical_zone);
   
-  if(!sensor_interrupt_flag)
-  {
-    time_detection = t_now_ms;
-    sensor_interrupt_flag = true;
-  }
+  bufferTimeDetection[nextTimeDet2write] = get_currentTimeMs();
+  nextTimeDet2write++;
+  nextTimeDet2write = nextTimeDet2write % (sizeof(bufferTimeDetection)/sizeof(bufferTimeDetection[0]));
   
   portEXIT_CRITICAL_ISR(&sensor_critical_zone);
 }
 
 /**********************************************************************
- * @brief Release sensor detection. It is called once the program has 
- * done the operations related to the detection. Enables the next 
- * detection
- */
-void release_sensor_detection(void)
-{
-  portENTER_CRITICAL(&sensor_critical_zone);
-  sensor_interrupt_flag = false;
-  portEXIT_CRITICAL(&sensor_critical_zone);
-}
+ * Global functions
+ *********************************************************************/
 
 /**********************************************************************
  * @brief Configures the pass sensor as input, actives the sensor 
@@ -84,6 +77,16 @@ void pass_sensor_init(void)
   pinMode(PIN_SENSOR, INPUT);
   delay(100); // Delay needed to avoid false interruption detections
   set_default_sensor_active_edge();
+}
+
+/**********************************************************************
+ * @brief Disable the pass sensor to avoid consumption
+ *
+ * @param lock: lock the pin after disabling
+ */
+void disable_pass_sensor(bool lock)
+{
+  power_12v_disable(lock);
 }
 
 /**********************************************************************
@@ -119,4 +122,45 @@ void invert_sensor_active_edge(void)
   }
 
   attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensor_isr, sensor_active_edge);
+}
+
+/**********************************************************************
+ * @brief Check if there are any detections pending of being processed
+ *
+ * @return: true if there are detections pending; false if not
+ */
+bool isAnyDetectionPending(void)
+{
+  return (nextTimeDet2write != nextTimeDet2read);
+}
+
+/**********************************************************************
+ * @brief Get time of the next detection to be processed
+ *
+ * @return: 0 if no detections pending; a positive number if yes
+ */
+uint32_t getNextTimeDetection(void)
+{
+  uint32_t nextTimeDetection = 0;
+
+  portENTER_CRITICAL(&sensor_critical_zone);
+
+  if(isAnyDetectionPending())
+  {
+    nextTimeDetection = bufferTimeDetection[nextTimeDet2read];
+    nextTimeDet2read++;
+    nextTimeDet2read = nextTimeDet2read % (sizeof(bufferTimeDetection)/sizeof(bufferTimeDetection[0]));
+  }
+
+  portEXIT_CRITICAL(&sensor_critical_zone);
+
+  return nextTimeDetection;
+}
+
+/**********************************************************************
+ * @brief Ignores any detection pending of being processed
+ */
+void ignoreAnyDetectionPending(void)
+{
+  nextTimeDet2read = nextTimeDet2write;
 }

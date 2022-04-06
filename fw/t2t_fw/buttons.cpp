@@ -54,6 +54,12 @@ s_button button_C = {PIN_BUTTON_C, 0, 0, 0, INVERTED, 0, 0};
 s_button *buttons[3];
 
 /**********************************************************************
+ * Local function declarations
+ *********************************************************************/
+
+void read_button(s_button *button);
+
+/**********************************************************************
  * Local functions
  *********************************************************************/
 
@@ -69,13 +75,13 @@ void read_button(s_button *button)
   /* Filter voltage noise */
   if(button->raw_state)
   {
-    if(t_now_ms - button->time_flag >= FILTERING_TIME)
+    if(get_currentTimeMs() - button->time_flag >= FILTERING_TIME)
       button->level_state = button->raw_state;
   }
   else
   {
     button->level_state = button->raw_state;
-    button->time_flag = t_now_ms;
+    button->time_flag = get_currentTimeMs();
   }
 
   /* Avoid continuos detection */

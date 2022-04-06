@@ -53,7 +53,6 @@ typedef struct {
  *********************************************************************/
 
 void display_init(void);
-void display_clear(void);
 void display_set_data(s_display_text *display_data, uint8_t num_lines);
 void display_task(void);
 
