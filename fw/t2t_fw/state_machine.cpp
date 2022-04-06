@@ -63,6 +63,7 @@ enum program_substate {
 enum mode2run {
   NORMAL_LAP_TIME_MODE,
   X_LAPS_TIME_MODE,
+  TIME_TRIAL_MODE,
   START_STOP_MODE,
   TOAST_MODE,
   SHOW_T2T_INFO,
@@ -94,6 +95,7 @@ void normal_lap_time_mode(void);
 bool x_laps_time_mode_laps_selection(void);
 void x_laps_time_mode(void);
 nodeSelectionState end_node_selection(mode2run t2t_mode);
+void time_trial_mode(void);
 void start_stop_mode(void);
 void toast_mode(void);
 void show_t2t_info(void);
@@ -115,6 +117,7 @@ s_mode_data mode_data[] = {
   /* time_mode           , text_in_menu          , func                 , next_menu_state , first_subtate */
   { NORMAL_LAP_TIME_MODE , "Normal lap time"     , normal_lap_time_mode , RUN_MODE        , INIT_SUBSTATE },
   { X_LAPS_TIME_MODE     , "X laps time"         , x_laps_time_mode     , SET_NUM_LAPS    , INIT_SUBSTATE },
+  { TIME_TRIAL_MODE      , "Time trial (2x t2t)" , time_trial_mode      , SELECT_END_NODE , INIT_SUBSTATE },
   { START_STOP_MODE      , "Start/Stop (2x t2t)" , start_stop_mode      , SELECT_END_NODE , INIT_SUBSTATE },
   { TOAST_MODE           , "Get toast time"      , toast_mode           , RUN_MODE        , INIT_SUBSTATE },
   { SHOW_T2T_INFO        , "Time2time info"      , show_t2t_info        , SHOW_INFO       , INIT_SUBSTATE },
@@ -179,6 +182,8 @@ void normal_lap_time_mode(void)
   {
     case INIT_SUBSTATE:
       /* substate actions */
+      set_default_sensor_active_edge();
+      
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -362,6 +367,7 @@ void x_laps_time_mode(void)
     case INIT_SUBSTATE:
       /* substate actions */
       laps_to_go = x_time_mode_target_laps;
+      set_default_sensor_active_edge();
       
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Ready");
@@ -502,7 +508,8 @@ void x_laps_time_mode(void)
 
 /**********************************************************************
  * @brief Executes the selection of the end node for the multi-node
- * modes. The start node is the one that has to select the end node
+ * modes when a mode needs two nodes to work. The start node is the one
+ * that has to select the end node
  * 
  * @param t2t_mode: mode to run after the end node selection
  * @return: -1 if there was an error; 1 if the end node was selected;
@@ -652,8 +659,106 @@ nodeSelectionState end_node_selection(mode2run t2t_mode)
 }
 
 /**********************************************************************
+ * @brief Executes the time trial mode and shows the total time spent
+ * on the circuit. This is a multinode mode, which requires two nodes
+ * to work.
+ * 
+ * This mode uses the simple detection to determine the start and stop
+ * times.
+ */
+void time_trial_mode(void)
+{
+  static uint32_t time_start_ms = 0;
+  static uint32_t time_stop_ms = 0;
+  static uint32_t best_time_race_ms = BEST_TIME_INIT_VALUE;
+  static uint8_t secondaryNodeAddress = 0;
+
+  static s_display_text text[] = {
+    /* Text , pos_X , pos_Y , font                , aligment   */
+    {  ""   , 0     , 0     , MAIN_TIME_FONT      , ALIGN_LEFT  },
+    {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
+  };
+
+  switch(substate)
+  {
+    case INIT_SUBSTATE:
+      /* substate actions */
+      set_default_sensor_active_edge();
+      
+      sprintf(text[0].text, "0.000");
+      sprintf(text[1].text, "Start ready");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      ignoreAnyDetectionPending();
+
+      /* test substate changes */
+      substate = WAIT_FOR_START;
+      break;
+
+    case WAIT_FOR_START:
+      /* substate actions */
+
+      /* test substate changes */
+      if(time_start_ms = getNextTimeDetection())
+      {
+        ignoreAnyDetectionRxPending();
+        set_buzzer_mode(SIMPLE_BEEP);
+        substate = WAIT_FOR_DETECTION;
+      }
+      break;
+      
+    case WAIT_FOR_DETECTION:
+      /* substate actions */
+      sprintf(text[0].text, "%.3f", (get_currentTimeMs() - time_start_ms)/1000.0);
+      sprintf(text[1].text, "Start/Stop running");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      /* test substate changes */
+      if(time_stop_ms = getNextTimeDetectionRx(&secondaryNodeAddress))
+      {
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, ((time_stop_ms - time_start_ms) < best_time_race_ms)? 2 : 1, time_stop_ms - time_start_ms);
+        substate = SHOW_TIME_DETECTION;
+      }
+      break;
+
+    case SHOW_TIME_DETECTION:
+      /* substate actions */
+      sprintf(text[0].text, "%.3f", (time_stop_ms - time_start_ms)/1000.0);
+      sprintf(text[1].text, "Press A to restart");
+      display_set_data(text, sizeof(text)/sizeof(s_display_text));
+
+      if((time_stop_ms - time_start_ms) < best_time_race_ms)
+        best_time_race_ms = time_stop_ms - time_start_ms;
+
+      /* test substate changes */
+      substate = FINISHED;
+      break;
+
+    case FINISHED:
+      /* substate actions */
+
+      /* test substate changes */
+      if(get_button_state(BUTTON_A))
+      {
+        sendESPNowTimeMsg2MainNode(secondaryNodeAddress, 0, 0);
+        substate = INIT_SUBSTATE;
+      }
+      break;
+      
+    default:
+      break;
+  }
+}
+
+/**********************************************************************
  * @brief Executes the start/stop time measurement mode and shows the 
- * total time spent on the circuit
+ * total time spent on the circuit. This is a multinode mode, which
+ * requires two nodes to work.
+ * 
+ * This mode uses an active detection to determine the start time,
+ * which makes the time starts when the sensor changes from a detecting
+ * state to a non-detecting state. The simple detection is used to
+ * determine the stop time.
  */
 void start_stop_mode(void)
 {
@@ -672,6 +777,8 @@ void start_stop_mode(void)
   {
     case INIT_SUBSTATE:
       /* substate actions */
+      invert_sensor_active_edge();
+
       sprintf(text[0].text, "0.000");
       sprintf(text[1].text, "Start ready");
       display_set_data(text, sizeof(text)/sizeof(s_display_text));
@@ -741,7 +848,12 @@ void start_stop_mode(void)
 
 /**********************************************************************
  * @brief Executes the toast time measurement mode and shows the total
- * time spent on toasting the slice
+ * time spent on toasting the slice.
+ * 
+ * This mode uses an active detection to determine the start time,
+ * which makes the time starts when the sensor changes from a detecting
+ * state to a non-detecting state. The simple detection is used to
+ * determine the stop time.
  */
 void toast_mode(void)
 {
@@ -1054,6 +1166,7 @@ void showSecondaryNodeTime(mode2run t2t_mode, uint16_t time2show)
         //todo: fill
         break;
 
+      case TIME_TRIAL_MODE:
       case START_STOP_MODE:
         sprintf(timeText[0].text, "%.3f", time2show/1000.0);
         sprintf(timeText[1].text, "Final time");
@@ -1254,6 +1367,7 @@ void state_machine_task(void)
       {
         case NORMAL_LAP_TIME_MODE:
         case X_LAPS_TIME_MODE:
+        case TIME_TRIAL_MODE:
         case START_STOP_MODE:
           sendDetectionMsg(getNextTimeDetection());
           break;

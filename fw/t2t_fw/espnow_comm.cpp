@@ -988,6 +988,7 @@ void espnow_task(void)
     detection_time_management(); // Check the required retransmissions of the detection messages
 }
 
+//todo: check the SW version between nodes with the reserved bits in the link message
 //todo: gestión del orden de los nodos desde la máquina de estados, al seleccionarlos
 //todo: include a time synchronization protocol
   // https://encyclopedia.pub/4192
