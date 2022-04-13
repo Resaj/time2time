@@ -25,6 +25,7 @@
 #include "scheduler.h"
 #include "state_machine.h"
 #include "supply.h"
+#include "t2t_data.h"
 
 /**********************************************************************
  * Defines & enums
@@ -176,6 +177,7 @@ void normal_lap_time_mode(void)
     {  ""   , 120   , 50    , SECONDARY_TIME_FONT , ALIGN_RIGHT }
   };
 
+  //todo: manage order of the nodes when using more than one to measure the partial times
   //todo: program partial times
 
   switch(substate)
@@ -844,8 +846,6 @@ void start_stop_mode(void)
   }
 }
 
-//todo: program micromouse operating mode
-
 /**********************************************************************
  * @brief Executes the toast time measurement mode and shows the total
  * time spent on toasting the slice.
@@ -991,7 +991,7 @@ void show_t2t_info(void)
         {  ""   , 0     , 36    , SECONDARY_TIME_FONT , ALIGN_LEFT    },
         {  ""   , 0     , 48    , SECONDARY_TIME_FONT , ALIGN_LEFT    }
       };
-      sprintf(text[0].text, "--- T2T #%u info ---", getThisNodeAddr());
+      sprintf(text[0].text, "T2T #%u info -- %s", getThisNodeAddr(), FW_VERSION);
       MAClisted = getNcheckMACAddr(text[1].text);
 
       if(MAClisted)
